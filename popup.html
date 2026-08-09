@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>jolly R</title>
+  <style>
+    :root {
+      --primary:       #e1a5f0;
+      --primary-dark:  #764ba2;
+      --primary-glow:  rgba(225,165,240,0.3);
+      --bg:            #ffffff;
+      --surface:       #f8f9fa;
+      --surface-2:     #f0f0f8;
+      --text:          #1a1a2e;
+      --text-80:       rgba(26,26,46,0.75);
+      --text-sub:      #6b7280;
+      --divider:       #e5e7eb;
+      --green:         #10b981;
+      --red:           #ef4444;
+      --amber:         #f59e0b;
+      --radius:        10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      width: 380px;
+      max-height: 640px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.3px;
+      flex: 1;
+    }
+    .header-version {
+      color: rgba(255,255,255,0.65);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* ── Tabs ────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      background: var(--bg);
+      border-bottom: 1px solid var(--divider);
+      flex-shrink: 0;
+    }
+    .tab {
+      flex: 1;
+      padding: 11px 6px;
+      background: none;
+      border: none;
+      border-bottom: 2.5px solid transparent;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-sub);
+      transition: all 0.18s;
+      letter-spacing: 0.1px;
+    }
+    .tab:hover { background: var(--surface); color: var(--text-80); }
+    .tab.active {
+      border-bottom-color: var(--primary-dark);
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+
+    /* ── Content ─────────────────────────────────────── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+    }
+    .content::-webkit-scrollbar { width: 4px; }
+    .content::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 4px; }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Section headers ─────────────────────────────── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin: 18px 0 10px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* ── Form elements ───────────────────────────────── */
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .form-group { flex: 1; margin-bottom: 10px; }
+    .form-group.full { margin-bottom: 10px; }
+    label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+      letter-spacing: 0.2px;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 8px 11px;
+      border: 1.5px solid var(--divider);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+    /* ── Checkboxes (consent) ─────────────────────── */
+    .checkbox-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1.4;
+      cursor: pointer;
+    }
+    .checkbox-label input[type="checkbox"] {
+      margin-top: 2px;
+      width: 15px;
+      height: 15px;
+      accent-color: var(--primary-dark);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 16px;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      box-shadow: 0 3px 12px var(--primary-glow);
+    }
+    .btn-primary:hover { filter: brightness(1.07); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--primary-dark);
+      border: 1.5px solid var(--divider);
+    }
+    .btn-secondary:hover { background: var(--surface-2); }
+    .btn-danger {
+      background: #fef2f2;
+      color: var(--red);
+      border: 1.5px solid #fee2e2;
+    }
+    .btn-danger:hover { background: #fee2e2; }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 7px 12px; font-size: 12px; }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .btn-row .btn { flex: 1; }
+
+    /* ── Stats ───────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 12px 8px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary-dark);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-sub);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Application history list ────────────────────── */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .history-item {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      border: 1px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .history-item:hover { border-color: var(--primary); }
+    .history-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .history-sub {
+      font-size: 11px;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 220px;
+    }
+    .history-badge {
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .badge-green { background: rgba(16,185,129,0.1); color: #059669; }
+    .badge-blue  { background: rgba(225,165,240,0.2); color: var(--primary-dark); }
+
+    /* ── Empty state ─────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 30px 10px;
+    }
+    .empty-state-icon { font-size: 40px; margin-bottom: 10px; }
+    .empty-state-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .empty-state-sub { font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── Resume file area ────────────────────────────── */
+    .file-drop {
+      border: 2px dashed var(--divider);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--surface);
+      margin-bottom: 10px;
+    }
+    .file-drop:hover { border-color: var(--primary); background: rgba(225,165,240,0.06); }
+    .file-drop.has-file { border-color: var(--green); background: rgba(16,185,129,0.05); }
+    .file-drop-icon { font-size: 26px; margin-bottom: 8px; }
+    .file-drop-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .file-drop-sub { font-size: 11px; color: var(--text-sub); }
+    input[type="file"] { display: none; }
+
+    /* ── Footer ──────────────────────────────────────── */
+    .footer {
+      padding: 10px 18px;
+      background: var(--surface);
+      border-top: 1px solid var(--divider);
+      flex-shrink: 0;
+    }
+    .status-msg {
+      font-size: 11.5px;
+      color: var(--text-sub);
+      text-align: center;
+      min-height: 16px;
+    }
+    .status-msg.success { color: var(--green); }
+    .status-msg.error   { color: var(--red); }
+    .status-msg.info    { color: var(--primary-dark); }
+
+    /* ── Divider ─────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--divider); margin: 14px 0; }
+
+    /* ── ATS Detection bar ───────────────────────────── */
+    .ats-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(225,165,240,0.1);
+      border-radius: var(--radius);
+      margin-bottom: 14px;
+      border: 1px solid rgba(225,165,240,0.3);
+    }
+    .ats-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; flex-shrink: 0; }
+    .ats-label { font-size: 12px; font-weight: 600; color: var(--primary-dark); }
+    .ats-name { font-size: 12px; color: var(--text-sub); margin-left: auto; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,0.25)"/>
+        <path d="M7 12l3 3 7-7" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      jolly R
+    </div>
+    <span class="header-version" id="ext-version">v2.0</span>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="profile">Profile</button>
+    <button class="tab" data-tab="application">Apply</button>
+    <button class="tab" data-tab="history">History</button>
+    <button class="tab" data-tab="tools">Tools</button>
+  </nav>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ── Profile Tab ────────────────────────────────────────────────── -->
+    <div class="tab-pane active" id="tab-profile">
+
+      <div class="section-title">Personal</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" placeholder="Jane">
+        </div>
+        <div class="form-group">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" placeholder="Smith">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="jane@email.com">
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input type="tel" id="phone" placeholder="(555) 000-0000">
+        </div>
+      </div>
+
+      <div class="section-title">Address</div>
+      <div class="form-group full">
+        <label for="address">Street Address</label>
+        <input type="text" id="address" placeholder="123 Main St">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="city">City</label>
+          <input type="text" id="city" placeholder="Raleigh">
+        </div>
+        <div class="form-group">
+          <label for="state">State</label>
+          <input type="text" id="state" placeholder="NC">
+        </div>
+        <div class="form-group">
+          <label for="zip">ZIP</label>
+          <input type="text" id="zip" placeholder="27601">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label for="country">Country</label>
+        <input type="text" id="country" placeholder="United States">
+      </div>
+
+      <div class="section-title">Professional</div>
+      <div class="form-group full">
+        <label for="summary">Professional Summary</label>
+        <textarea id="summary" placeholder="Brief overview of your experience and goals…"></textarea>
+      </div>
+      <div class="form-group full">
+        <label for="skills">Skills</label>
+        <textarea id="skills" rows="2" placeholder="Python, SQL, Project Management…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="position">Current/Target Role</label>
+          <input type="text" id="position" placeholder="IT Analyst">
+        </div>
+        <div class="form-group">
+          <label for="company">Current Company</label>
+          <input type="text" id="company" placeholder="Acme Corp">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="linkedin">LinkedIn URL</label>
+          <input type="url" id="linkedin" placeholder="linkedin.com/in/…">
+        </div>
+        <div class="form-group">
+          <label for="website">Portfolio / Website</label>
+          <input type="url" id="website" placeholder="yoursite.com">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label for="education">Education</label>
+        <input type="text" id="education" placeholder="BS Information Technology, NCSU">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="availability">Availability</label>
+          <select id="availability">
+            <option value="">Select…</option>
+            <option value="Immediate">Immediate</option>
+            <option value="2 weeks">2 Weeks</option>
+            <option value="1 month">1 Month</option>
+            <option value="3 months">3 Months</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="workType">Work Type</label>
+          <select id="workType">
+            <option value="">Select…</option>
+            <option value="On-site">On-site</option>
+            <option value="Remote">Remote</option>
+            <option value="Hybrid">Hybrid</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-title">Eligibility &amp; Legal</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="workAuthorization">Work Authorization</label>
+          <select id="workAuthorization">
+            <option value="">Select…</option>
+            <option value="Yes">Authorized to work</option>
+            <option value="No">Not authorized</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="sponsorshipNeeded">Sponsorship Needed</label>
+          <select id="sponsorshipNeeded">
+            <option value="">Select…</option>
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="ageConfirmed">18+ Confirmation</label>
+          <select id="ageConfirmed">
+            <option value="">Select…</option>
+            <option value="Yes">Yes, I am 18 or older</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="employmentType">Employment Type</label>
+          <select id="employmentType">
+            <option value="">Select…</option>
+            <option value="Full-time">Full-time</option>
+            <option value="Part-time">Part-time</option>
+            <option value="Contract">Contract</option>
+            <option value="Internship">Internship</option>
+            <option value="Freelance">Freelance</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="startDate">Available Start Date</label>
+          <input type="text" id="startDate" placeholder="e.g. 2026-09-01">
+        </div>
+        <div class="form-group">
+          <label for="relocate">Willing to Relocate</label>
+          <select id="relocate">
+            <option value="">Select…</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="travel">Travel Willingness</label>
+          <select id="travel">
+            <option value="">Select…</option>
+            <option value="None">None</option>
+            <option value="Up to 25%">Up to 25%</option>
+            <option value="Up to 50%">Up to 50%</option>
+            <option value="Up to 75%">Up to 75%</option>
+            <option value="Up to 100%">Up to 100%</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="yearsExperience">Years of Experience</label>
+          <input type="text" id="yearsExperience" placeholder="e.g. 5+">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label for="certifications">Certifications</label>
+        <input type="text" id="certifications" placeholder="Comma separated, e.g. PMP, AWS Solutions Architect">
+      </div>
+
+      <div class="section-title">EEO (Voluntary — optional)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="gender">Gender</label>
+          <select id="gender">
+            <option value="">Select…</option>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Non-binary">Non-binary</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="race">Race / Ethnicity</label>
+          <select id="race">
+            <option value="">Select…</option>
+            <option value="American Indian or Alaska Native">American Indian or Alaska Native</option>
+            <option value="Asian">Asian</option>
+            <option value="Black or African American">Black or African American</option>
+            <option value="Hispanic or Latino">Hispanic or Latino</option>
+            <option value="Native Hawaiian or Pacific Islander">Native Hawaiian or Pacific Islander</option>
+            <option value="White">White</option>
+            <option value="Two or more races">Two or more races</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="veteranStatus">Veteran Status</label>
+          <select id="veteranStatus">
+            <option value="">Select…</option>
+            <option value="Yes">I am a veteran</option>
+            <option value="No">I am not a veteran</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="disabilityStatus">Disability Status</label>
+          <select id="disabilityStatus">
+            <option value="">Select…</option>
+            <option value="Yes">I have a disability</option>
+            <option value="No">I do not have a disability</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-title">Application Details</div>
+      <div class="form-group full">
+        <label for="coverLetter">Cover Letter</label>
+        <textarea id="coverLetter" rows="3" placeholder="Paste your cover letter text here…"></textarea>
+      </div>
+      <div class="form-group full">
+        <label for="whyInterested">Why Are You Interested?</label>
+        <textarea id="whyInterested" rows="2" placeholder="Optional short answer used when applications ask for interest…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="referralSource">Referral Source</label>
+          <input type="text" id="referralSource" placeholder="e.g. LinkedIn, Indeed, Employee Referral">
+        </div>
+        <div class="form-group">
+          <label for="referredBy">Referred By</label>
+          <input type="text" id="referredBy" placeholder="Name of referrer (optional)">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label for="references">References</label>
+        <textarea id="references" rows="2" placeholder="Name — Relationship — Contact (one per line)"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="referenceName">Reference Name</label>
+          <input type="text" id="referenceName" placeholder="Jane Doe">
+        </div>
+        <div class="form-group">
+          <label for="referenceRelationship">Reference Relationship</label>
+          <input type="text" id="referenceRelationship" placeholder="e.g. Manager">
+        </div>
+      </div>
+      <div class="form-group full">
+        <label for="referenceContact">Reference Contact</label>
+        <input type="text" id="referenceContact" placeholder="email or phone">
+      </div>
+
+      <div class="section-title">Consent — Fill Only When Checked</div>
+      <div class="checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="consentBackgroundCheck">
+          <span>Background check consent</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="consentDrugScreening">
+          <span>Drug screening consent</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="consentSignature">
+          <span>Electronic signature / attestation</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="consentTerms">
+          <span>Terms &amp; conditions agreement</span>
+        </label>
+      </div>
+      <p style="font-size:11px;color:var(--text-sub);line-height:1.5;margin-bottom:10px;">
+        These are never auto-checked on a job page. Only the consent items you enable here
+        will be confirmed during autofill.
+      </p>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-save-profile">Save Profile</button>
+        <button class="btn btn-secondary" id="btn-clear-profile">Clear</button>
+      </div>
+    </div>
+
+    <!-- ── Application Tab ────────────────────────────────────────────── -->
+    <div class="tab-pane" id="tab-application">
+
+      <div id="ats-detection-bar" class="ats-bar" style="display:none;">
+        <span class="ats-dot"></span>
+        <span class="ats-label">Job site detected</span>
+        <span class="ats-name" id="ats-name-label"></span>
+      </div>
+
+      <div class="section-title">Resume</div>
+      <label for="resume-file-input" class="file-drop" id="resume-drop">
+        <input type="file" id="resume-file-input" accept=".pdf,.doc,.docx">
+        <div class="file-drop-icon">📄</div>
+        <div class="file-drop-title" id="resume-drop-title">Upload Resume</div>
+        <div class="file-drop-sub">PDF, DOC, or DOCX</div>
+      </label>
+
+      <div class="section-title">Cover Letter</div>
+      <label for="cover-letter-file-input" class="file-drop" id="cover-letter-drop">
+        <input type="file" id="cover-letter-file-input" accept=".pdf,.doc,.docx,.txt">
+        <div class="file-drop-icon">✉️</div>
+        <div class="file-drop-title" id="cover-letter-drop-title">Upload Cover Letter</div>
+        <div class="file-drop-sub">Optional — used for cover letter upload fields</div>
+      </label>
+
+      <div class="section-title">Quick Fill Options</div>
+      <div class="form-group full">
+        <label for="app-target-position">Target Position</label>
+        <input type="text" id="app-target-position" placeholder="e.g. Software Engineer">
+      </div>
+      <div class="form-group full">
+        <label for="app-target-company">Target Company</label>
+        <input type="text" id="app-target-company" placeholder="e.g. Google">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btn-fill-app">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 2l6 6-6 6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Fill Application
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btn-detect-forms">Scan</button>
+        <button class="btn btn-secondary btn-sm" id="btn-clear-forms">Clear</button>
+      </div>
+
+      <hr>
+
+      <div class="section-title">Password Generator</div>
+      <div class="form-row" style="align-items:flex-end;gap:8px;">
+        <div class="form-group" style="flex:3;">
+          <label>Generated Password</label>
+          <input type="text" id="generated-password" readonly placeholder="Click Generate">
+        </div>
+        <div style="flex:1;padding-bottom:10px;">
+          <button class="btn btn-secondary btn-full" id="btn-gen-password" style="height:36px;padding:0;">🔑 Gen</button>
+        </div>
+        <div style="flex:0;padding-bottom:10px;">
+          <button class="btn btn-secondary" id="btn-copy-password" style="height:36px;padding:0 10px;">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── History Tab ────────────────────────────────────────────────── -->
+    <div class="tab-pane" id="tab-history">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-week">0</div><div class="stat-label">This Week</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-today">0</div><div class="stat-label">Today</div></div>
+      </div>
+
+      <div class="section-title">Recent Applications</div>
+      <div id="history-list" class="history-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <div class="empty-state-title">No applications yet</div>
+          <div class="empty-state-sub">Applications you fill will appear here.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <button class="btn btn-secondary btn-full btn-sm" id="btn-export-history">⬇ Export CSV</button>
+      </div>
+    </div>
+
+    <!-- ── Tools Tab ──────────────────────────────────────────────────── -->
+    <div class="tab-pane" id="tab-tools">
+
+      <div class="section-title">Manual Tools</div>
+      <div class="form-group full">
+        <label>Current Page URL</label>
+        <input type="text" id="current-url" readonly>
+      </div>
+
+      <div class="btn-row" style="margin-top:0;">
+        <button class="btn btn-primary" id="btn-manual-fill">Fill Forms</button>
+        <button class="btn btn-secondary" id="btn-detect-forms-2">Detect</button>
+        <button class="btn btn-danger" id="btn-clear-forms-2">Clear</button>
+      </div>
+
+      <hr>
+
+      <div class="section-title">Detection Results</div>
+      <div id="detection-results" style="
+        background:var(--surface);
+        border-radius:var(--radius);
+        padding:10px 12px;
+        font-size:12px;
+        color:var(--text-sub);
+        min-height:60px;
+        line-height:1.6;
+      ">No scan run yet.</div>
+
+      <hr>
+
+      <div class="section-title">Saved Credentials</div>
+      <div id="credentials-list" style="
+        background:var(--surface);
+        border-radius:var(--radius);
+        padding:10px 12px;
+        font-size:12px;
+        color:var(--text-sub);
+        min-height:50px;
+        line-height:1.7;
+      ">None saved.</div>
+
+      <div style="margin-top:10px;">
+        <button class="btn btn-danger btn-full btn-sm" id="btn-clear-creds">Clear Saved Credentials</button>
+      </div>
+    </div>
+
+  </div><!-- end .content -->
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="status-msg" id="status-msg">Ready</div>
+  </footer>
+
+  <script src="lib/pdf-processor.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

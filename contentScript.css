@@ -1,0 +1,445 @@
+/* jolly R Content Script CSS v2.0 — Shadow DOM isolated styles */
+
+/* ── CSS Variables (Light/Dark theme) ─────────────────────────────────────── */
+:host {
+  --jR-primary:       #e1a5f0;
+  --jR-primary-dark:  #764ba2;
+  --jR-primary-glow:  rgba(225,165,240,0.35);
+  --jR-bg:            #ffffff;
+  --jR-surface:       #f8f9fa;
+  --jR-surface-2:     #f0f0f5;
+  --jR-text:          #1a1a2e;
+  --jR-text-80:       rgba(26,26,46,0.8);
+  --jR-text-sub:      #6b7280;
+  --jR-divider:       #e5e7eb;
+  --jR-green:         #10b981;
+  --jR-red:           #ef4444;
+  --jR-amber:         #f59e0b;
+  --jR-radius:        16px;
+  --jR-shadow:        0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  --jR-font:          'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--jR-font);
+  font-feature-settings: normal;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+:host([data-theme="dark"]) {
+  --jR-bg:        #1e1e2e;
+  --jR-surface:   #2a2a3e;
+  --jR-surface-2: #313148;
+  --jR-text:      #f8f8ff;
+  --jR-text-80:   rgba(248,248,255,0.8);
+  --jR-text-sub:  #9ca3af;
+  --jR-divider:   #3a3a52;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Root wrapper ───────────────────────────────────────────────────────────── */
+.jR-root {
+  pointer-events: none;
+  position: fixed;
+  right: 0;
+  top: 30%;
+  transform: translateY(-70%);
+  z-index: 2147483647;
+  font-family: var(--jR-font);
+}
+.jR-root > * { pointer-events: auto; }
+
+/* ── Popup Panel ────────────────────────────────────────────────────────────── */
+.jR-panel {
+  background: var(--jR-bg);
+  border-radius: var(--jR-radius);
+  box-shadow: var(--jR-shadow);
+  min-width: 320px;
+  max-width: 340px;
+  margin-right: 8px;
+  overflow: hidden;
+  transform-origin: top right;
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease;
+}
+.jR-panel.open {
+  animation: jR-slide-in 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes jR-slide-in {
+  from { transform: translateX(calc(100% + 16px)); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.jR-panel.hidden {
+  transform: scale(0.82) translateY(-8px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.jR-header {
+  background: linear-gradient(135deg, var(--jR-primary) 0%, var(--jR-primary-dark) 100%);
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.jR-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+.jR-header-logo svg { flex-shrink: 0; }
+.jR-header-ats {
+  background: rgba(255,255,255,0.22);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jR-header-close {
+  background: transparent;
+  border: 0;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.jR-header-close:hover { background: rgba(255,255,255,0.18); }
+
+/* ── Body ───────────────────────────────────────────────────────────────────── */
+.jR-body {
+  padding: 16px;
+  color: var(--jR-text);
+}
+
+/* ── Status Bar ─────────────────────────────────────────────────────────────── */
+.jR-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--jR-surface);
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--jR-text-80);
+}
+.jR-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--jR-text-sub);
+  transition: background 0.3s;
+}
+.jR-status-dot.detecting { background: var(--jR-amber); animation: jR-pulse 1.2s infinite; }
+.jR-status-dot.filling   { background: var(--jR-primary); animation: jR-pulse 0.8s infinite; }
+.jR-status-dot.complete  { background: var(--jR-green); }
+.jR-status-dot.error     { background: var(--jR-red); }
+
+@keyframes jR-pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.3); }
+}
+
+/* ── Field Progress List ────────────────────────────────────────────────────── */
+.jR-field-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.jR-field-list::-webkit-scrollbar { width: 3px; }
+.jR-field-list::-webkit-scrollbar-thumb { background: var(--jR-divider); border-radius: 3px; }
+
+.jR-field-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  background: var(--jR-surface);
+  color: var(--jR-text-80);
+  transition: background 0.2s;
+}
+.jR-field-item.filled {
+  background: rgba(16,185,129,0.08);
+  color: var(--jR-text);
+}
+.jR-field-item.filling {
+  background: rgba(225,165,240,0.12);
+}
+.jR-field-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jR-field-name {
+  flex: 1;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.jR-field-value {
+  color: var(--jR-text-sub);
+  font-size: 11px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
+.jR-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: var(--jR-font);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  padding: 11px 18px;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+.jR-btn-primary {
+  background: linear-gradient(135deg, var(--jR-primary) 0%, var(--jR-primary-dark) 100%);
+  color: white;
+  box-shadow: 0 4px 14px var(--jR-primary-glow);
+}
+.jR-btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 20px var(--jR-primary-glow);
+  transform: translateY(-1px);
+}
+.jR-btn-primary:active { transform: translateY(0); filter: brightness(0.96); }
+.jR-btn-primary:disabled {
+  background: #c9c9d4;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.jR-btn-secondary {
+  background: var(--jR-surface);
+  color: var(--jR-primary-dark);
+  border: 1px solid var(--jR-divider);
+}
+.jR-btn-secondary:hover { background: var(--jR-surface-2); }
+
+.jR-btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.jR-btn-row .jR-btn { flex: 1; }
+
+/* ── Stats Row ──────────────────────────────────────────────────────────────── */
+.jR-stats {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.jR-stat {
+  flex: 1;
+  background: var(--jR-surface);
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.jR-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--jR-primary-dark);
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.jR-stat-label {
+  font-size: 10.5px;
+  color: var(--jR-text-sub);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ── No-Profile State ───────────────────────────────────────────────────────── */
+.jR-empty {
+  text-align: center;
+  padding: 10px 0 6px;
+}
+.jR-empty-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+.jR-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--jR-text);
+  margin-bottom: 4px;
+}
+.jR-empty-sub {
+  font-size: 12px;
+  color: var(--jR-text-sub);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+/* ── Right-edge Dock Tab (tucked sliver) ───────────────────────────────────── */
+.jR-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 52px;
+  height: 150px;
+  background: linear-gradient(135deg, var(--jR-primary) 0%, var(--jR-primary-dark) 100%);
+  border: 0;
+  border-radius: 14px 0 0 14px;
+  color: white;
+  cursor: pointer;
+  font-family: var(--jR-font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: -4px 0 18px var(--jR-primary-glow);
+  transform: translateX(calc(100% - 10px));
+  transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+.jR-trigger:hover,
+.jR-trigger:focus-visible {
+  transform: translateX(0);
+}
+.jR-trigger:active { transform: translateX(0) scale(0.97); }
+.jR-trigger svg { flex-shrink: 0; }
+.jR-trigger-chevron { margin-bottom: 2px; opacity: 0.9; }
+.jR-trigger-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+/* ── Notification Toast ─────────────────────────────────────────────────────── */
+.jR-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--jR-text);
+  color: var(--jR-bg);
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 280px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(0);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+.jR-toast.exit {
+  transform: translateY(16px);
+  opacity: 0;
+}
+.jR-toast-icon { font-size: 16px; flex-shrink: 0; }
+.jR-toast.success { border-left: 4px solid var(--jR-green); }
+.jR-toast.error   { border-left: 4px solid var(--jR-red); }
+.jR-toast.info    { border-left: 4px solid var(--jR-primary); }
+
+/* ── Spinner ────────────────────────────────────────────────────────────────── */
+.jR-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: jR-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes jR-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Divider ────────────────────────────────────────────────────────────────── */
+.jR-divider {
+  height: 1px;
+  background: var(--jR-divider);
+  margin: 12px 0;
+}
+
+/* ── Account creation banner ────────────────────────────────────────────────── */
+.jR-account-banner {
+  background: linear-gradient(135deg, var(--jR-primary) 0%, var(--jR-primary-dark) 100%);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: white;
+  margin-bottom: 14px;
+}
+.jR-account-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.jR-account-banner-sub {
+  font-size: 11.5px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+/* ── Completion overlay ─────────────────────────────────────────────────────── */
+.jR-complete-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0 8px;
+  text-align: center;
+}
+.jR-complete-icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(16,185,129,0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin-bottom: 10px;
+}
+.jR-complete-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--jR-text);
+  margin-bottom: 4px;
+}
+.jR-complete-sub {
+  font-size: 12.5px;
+  color: var(--jR-text-sub);
+}
