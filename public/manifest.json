@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "jolly R — AI Job Autofill",
+  "version": "3.0.0",
+  "description": "jolly R detects job application forms, fills them from your saved profile, and tracks the applications you submit.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "tabs",
+    "webNavigation",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://openrouter.ai/*",
+    "https://www.arbeitnow.com/*",
+    "http://192.168.0.102/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "jolly R"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["contentScript.js"],
+      "css": ["contentScript.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "contentScript.css",
+        "lib/pdfjs/build/pdf.js",
+        "lib/pdfjs/build/pdf.worker.js"
+      ],
+      "matches": ["*://*/*"]
+    }
+  ]
+}

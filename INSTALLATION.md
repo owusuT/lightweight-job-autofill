@@ -24,15 +24,17 @@
    - Toggle "Developer mode" in the top-right corner
    - This enables loading unpacked extensions
 
-4. **Load the Extension**
+4. **Build and Load the Extension**
+   - Run `npm install` once, then `npm run build`
    - Click "Load unpacked"
-   - Select the `lightweight-job-autofill` folder
+   - Select the `dist/` folder (the repo root has no `manifest.json`)
    - The extension will appear in your toolbar
 
 5. **Verify Installation**
    - Look for the extension icon in Chrome toolbar
    - Click the icon to open the popup
-   - Navigate between Profile, Jobs, and History tabs
+   - Navigate between Profile, Apply, History, and Tools tabs
+   - Click **Best Jobs** to open the side panel
 
 ## First Time Setup
 
@@ -98,26 +100,24 @@ Create PNG icons in the `icons/` folder:
 - `icon128.png` (128x128 pixels)
 
 ### Modifying Permissions
-Edit `manifest.json` to adjust permissions:
+Edit `public/manifest.json` to adjust permissions:
 ```json
 {
   "permissions": [
     "storage",
-    "activeTab",
-    "scripting",
+    "tabs",
     "webNavigation",
-    "webRequest"
+    "sidePanel"
   ],
   "host_permissions": [
     "https://*/*",
-    "http://*/*",
-    "https://www.arbeitnow.com/*"
+    "http://*/*"
   ]
 }
 ```
 
 ### Custom Field Mappings
-Modify field detection in `content.js`:
+Modify field detection in `contentScript.js`:
 ```javascript
 const fieldMappings = {
   'first_name': ['first', 'given', 'forename', 'custom_field'],
@@ -149,19 +149,23 @@ const fieldMappings = {
 
 ```
 lightweight-job-autofill/
-|-- manifest.json          # Extension configuration
-|-- background.js          # Service worker (API calls, storage)
-|-- content.js             # Form detection and filling
-|-- popup.html             # Extension popup interface
-|-- popup.js               # Popup logic and event handling
-|-- styles/
-|   |-- popup.css          # Popup styling
-|-- icons/
-|   |-- icon16.png         # 16x16 icon
-|   |-- icon48.png         # 48x48 icon
-|   |-- icon128.png        # 128x128 icon
+|-- dist/                  # Built extension (load this folder unpacked)
+|-- popup.html             # Popup entry (built by Vite)
+|-- sidepanel.html         # Side panel entry (built by Vite)
+|-- contentScript.js       # Form detection and filling (copied as-is)
+|-- contentScript.css      # Dock and toast styles
+|-- public/
+|   |-- manifest.json      # Extension configuration (MV3)
+|-- src/
+|   |-- background/        # Service worker source
+|   |-- popup/             # Popup React app
+|   |-- sidepanel/         # Side panel React app
+|   |-- shared/            # Types, messages, scoring, AI providers
+|-- lib/
+|   |-- pdf-processor.js   # PDF text extraction
+|   |-- pdfjs/build/       # Vendored PDF.js
+|-- scripts/               # Build copy script
 |-- README.md              # Main documentation
-|-- API_DOCUMENTATION.md   # API details and limitations
 |-- INSTALLATION.md        # This file
 ```
 

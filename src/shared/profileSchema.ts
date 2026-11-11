@@ -1,0 +1,57 @@
+// Profile field definitions from popup.js
+
+export const PROFILE_FIELDS = [
+  "firstName",
+  "lastName",
+  "email",
+  "phone",
+  "address",
+  "address2",
+  "city",
+  "state",
+  "zip",
+  "country",
+  "summary",
+  "experience",
+  "skills",
+  "position",
+  "company",
+  "salary",
+  "industry",
+  "linkedin",
+  "website",
+  "education",
+  "availability",
+  "workType",
+  "workAuthorization",
+  "sponsorshipNeeded",
+  "ageConfirmed",
+  "employmentType",
+  "startDate",
+  "relocate",
+  "travel",
+  "yearsExperience",
+  "certifications",
+  "gender",
+  "race",
+  "veteranStatus",
+  "disabilityStatus",
+  "coverLetter",
+  "whyInterested",
+  "referralSource",
+  "referredBy",
+  "references",
+  "referenceName",
+  "referenceRelationship",
+  "referenceContact",
+] as const;
+
+export const PROFILE_CHECKBOXES = [
+  "consentBackgroundCheck",
+  "consentDrugScreening",
+  "consentSignature",
+  "consentTerms",
+] as const;
+
+export type ProfileField = (typeof PROFILE_FIELDS)[number];
+export type ProfileCheckbox = (typeof PROFILE_CHECKBOXES)[number];
