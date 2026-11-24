@@ -20,6 +20,7 @@ interface ApplyAnswerValue {
 }
 
 export class AllFramesModule {
+  private automationGeneration = new Map<number, number>();
   constructor(private userData: UserDataService) {}
 
   private async _enumerateFrames(tabId: number): Promise<number[]> {
@@ -53,16 +54,21 @@ export class AllFramesModule {
     return tabs[0]?.id || null;
   }
 
-  private async _roundTrip(tabId: number, type: string, value: unknown): Promise<AllFramesResult> {
+  async runForTab(tabId: number, type: string, value: unknown): Promise<AllFramesResult> {
+    if (type === 'AUTOMATION_CANCEL') {
+      this.automationGeneration.set(tabId, (this.automationGeneration.get(tabId) || 0) + 1);
+    }
+    const generation = this.automationGeneration.get(tabId) || 0;
     const frameIds = await this._enumerateFrames(tabId);
     const perFrame: Record<number, number> = {};
     let framesReached = 0;
     let anySuccess = false;
     let error: string | null = null;
 
-    if (type === 'FILL_JOB_APPLICATION' || type === 'MANUAL_FILL_FORM') {
+    if (type === 'FILL_JOB_APPLICATION' || type === 'MANUAL_FILL_FORM' || type === 'AUTOMATION_FILL') {
       let fieldsFilled = 0;
       for (const frameId of frameIds) {
+        if (type === 'AUTOMATION_FILL' && generation !== (this.automationGeneration.get(tabId) || 0)) break;
         const resp = (await this._sendToFrame(tabId, frameId, { type, value })) as { fieldsFilled?: number; success?: boolean; error?: string };
         if (!resp) continue;
         framesReached++;
@@ -174,14 +180,14 @@ export class AllFramesModule {
         }
       }
 
-      let result = await this._roundTrip(tabId, type, value);
+      let result = await this.runForTab(tabId, type, value);
 
       // SPA forms can render after we first message the frames.
       // If nothing was filled, keep retrying briefly so a slow-hydrating iframe still gets filled.
       if (type === 'FILL_JOB_APPLICATION' && result.fieldsFilled === 0) {
         for (let attempt = 1; attempt < 4; attempt++) {
           await new Promise((r) => setTimeout(r, 1500));
-          result = await this._roundTrip(tabId, type, value);
+          result = await this.runForTab(tabId, type, value);
           if (result.fieldsFilled && result.fieldsFilled > 0) break;
         }
       }

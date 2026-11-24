@@ -43,14 +43,14 @@ const fixture = `
 
 type Field = { type: string; label?: string; id?: string; name?: string };
 
-async function runOnForm<T>(html: string, run: (send: (type: string, value?: Profile) => Promise<unknown>, document: Document) => Promise<T>): Promise<T> {
+async function runOnForm<T>(html: string, run: (send: (type: string, value?: unknown) => Promise<unknown>, document: Document) => Promise<T>): Promise<T> {
   const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, {
     url: 'https://careers.example.com/apply',
     runScripts: 'outside-only',
     pretendToBeVisual: true,
   });
   const { window } = dom;
-  const listeners: Array<(message: { type: string; value?: Profile }, sender: unknown, send: (value: unknown) => void) => boolean | void> = [];
+  const listeners: Array<(message: { type: string; value?: unknown }, sender: unknown, send: (value: unknown) => void) => boolean | void> = [];
 
   const rect = { width: 100, height: 20, right: 100, bottom: 20, left: 0, top: 0, x: 0, y: 0 };
   window.HTMLElement.prototype.getBoundingClientRect = () => ({ ...rect, toJSON: () => rect }) as DOMRect;
@@ -95,6 +95,38 @@ async function runOnForm<T>(html: string, run: (send: (type: string, value?: Pro
 }
 
 describe('generic field detection', () => {
+  it('automatically fills a step, preserves an existing answer, and clicks Next', async () => {
+    await runOnForm(`<form>
+      <label>First name <input id="first" autocomplete="given-name" required></label>
+      <label>Email <input id="email" type="email" required value="custom@example.test"></label>
+      <button type="button" id="next">Next</button>
+      <button type="button" id="submit">Submit application</button>
+    </form>`, async (send, document) => {
+      let nextClicks = 0;
+      let submitClicks = 0;
+      document.getElementById('next')?.addEventListener('click', () => { nextClicks++; });
+      document.getElementById('submit')?.addEventListener('click', () => { submitClicks++; });
+      const first = await send('AUTOMATION_INSPECT') as { signature: string; missing: string[] };
+      expect(first.missing).toContain('First name');
+      expect(await send('AUTOMATION_ADVANCE', { signature: first.signature })).toEqual({ clicked: false });
+      await send('AUTOMATION_FILL', { firstName: 'Ada', email: 'saved@example.test' } satisfies Profile);
+      const filled = await send('AUTOMATION_INSPECT') as { signature: string; missing: string[] };
+      expect(filled.missing).toEqual([]);
+      expect(document.querySelector<HTMLInputElement>('#email')?.value).toBe('custom@example.test');
+      expect(await send('AUTOMATION_ADVANCE', { signature: filled.signature })).toEqual({ clicked: true });
+      expect(nextClicks).toBe(1);
+      expect(submitClicks).toBe(0);
+    });
+  });
+
+  it('pauses on a sign-in screen and leaves the final submit button alone', async () => {
+    await runOnForm('<input type="password"><button>Submit application</button>', async send => {
+      const inspection = await send('AUTOMATION_INSPECT') as { signature: string; blockers: string[]; review: boolean };
+      expect(inspection.blockers[0]).toContain('sign in');
+      expect(inspection.review).toBe(true);
+      expect(await send('AUTOMATION_ADVANCE', { signature: inspection.signature })).toEqual({ clicked: false });
+    });
+  });
   it('classifies an unfamiliar application form from label, autocomplete, and automation context', async () => {
     const response = await runOnForm(fixture, (send) => send('DETECT_FORMS')) as { forms: Field[] };
     const forms = response.forms;

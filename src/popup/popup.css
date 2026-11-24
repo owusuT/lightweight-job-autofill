@@ -380,5 +380,14 @@
     .result-name { font-weight: 600; color: var(--text-80); }
     .result-label { color: var(--text-sub); text-align: right; }
 
+    .automation-panel {
+      margin-top: 18px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .automation-panel [role="status"] { font-size: 12px; line-height: 1.5; }
+
     button:focus-visible { outline: 2px solid var(--platinum); outline-offset: 2px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }

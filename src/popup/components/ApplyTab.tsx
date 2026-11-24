@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Profile } from "../../shared/types";
 import { generateStrongPassword } from "../../shared/password";
 import { clearForms, detectForms, fillApplication } from "../api";
+import { ApplicationAutomation } from './ApplicationAutomation';
 
 declare global {
   interface Window {
@@ -170,6 +171,8 @@ export function ApplyTab({ profile, atsName, setStatus }: Props) {
         <button className="btn btn-secondary btn-sm" onClick={scan}>Scan</button>
         <button className="btn btn-secondary btn-sm" onClick={clear}>Clear</button>
       </div>
+
+      <ApplicationAutomation position={targetPosition.trim()} company={targetCompany.trim()} />
 
       <hr />
 

@@ -1,5 +1,9 @@
 # Current Tasks
 
+## T-15 (DONE) — Start-to-review application automation
+
+The Apply tab controls a persistent background workflow with Start, Pause, Resume, and Stop. It fills and validates each step, advances through a single recognized Next control, pauses for missing answers or authentication, and stops at final review. Progress stays tied to the original tab and survives background restarts. Existing answers are preserved during automated fills. Live board-specific verification remains pending.
+
 ## T-14 (DONE) — Unified React interface
 
 2026-11-24. The extension icon opens one persistent React side panel with Profile, Apply, Best Jobs, History, and Tools tabs. Best Jobs includes AI settings. The floating page dock and separate Best Jobs entry were removed. This supersedes the earlier decision to keep the vanilla dock. Page detection, autofill, uploads, and capture continue through the content script.

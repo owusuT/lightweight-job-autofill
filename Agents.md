@@ -4,6 +4,12 @@ This file is maintained automatically by the Go_manager mode.
 
 ## Change Log (most recent first)
 
+- **2026-11-24 - Automated application workflow**
+  - Apply gains Start application, Pause, Resume, and Stop controls. A background runner saves the original tab, current step, and phase in local `applicationFlow` storage. Alarms recover suspended runs.
+  - Each step fills through the existing cross-frame engine, preserves existing answers, validates required controls, then clicks one clearly identified Next action. Login, verification, missing answers, ambiguous navigation, and final review pause the workflow.
+  - Navigation intent is persisted before clicking so recovery waits for a page change instead of repeating the click. Pause and Stop cancel filling cooperatively and prevent filling subsequent frames.
+  - Verified with workflow and real-content-script regression tests. Live job-board automation remains unverified.
+
 - **2026-11-24 - One React panel with tabs**
   - Profile, Apply, Best Jobs, History, and Tools share one persistent side panel. Best Jobs and AI settings render through React within it.
   - The toolbar opens popup.html as the sole side-panel interface. Removed the separate Best Jobs HTML entry, toolbar popup registration, floating page dock, and manual DOM rendering. The content script retains page detection, autofill, file attachment, job capture, and message handlers.

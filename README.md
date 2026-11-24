@@ -30,6 +30,14 @@ The interface uses React + TypeScript and is built by Vite. The page scanner and
 
 ## Use
 
+### Automated applications
+
+Save your profile and upload your resume, then open a job's application form. In **Apply**, choose **Start application**. The extension fills and checks each step, clicks a clearly identified Next or Continue button, and proceeds automatically through final review.
+
+**Pause** interrupts filling after the current field action. **Resume** scans the original application tab again and preserves answers already entered. **Stop** ends the run. When required answers, sign-in, verification, or an ambiguous navigation button need attention, the panel explains what to complete on the page before resuming. Submit the finished application yourself from its final review screen.
+
+Progress is saved locally and continues across navigation, panel closure, and background restarts. A background wake-up can take up to one minute after suspension. Support relies on standard controls and page labels, so unfamiliar custom widgets may require manual completion.
+
 ### Set up a profile
 
 1. Open the popup.

@@ -800,13 +800,14 @@ class AutofillOrchestrator {
     this._watchedForms = new WeakSet();
   }
 
-  async run(profile) {
+  async run(profile, preserveExisting = false) {
     if (this.isRunning) return { fieldsFilled: 0, skipped: true };
     if (!profile) {
       this.ui.showToast("No profile found. Please set up your profile in jolly R.", "error");
-      return { fieldsFilled: 0 };
+      return { fieldsFilled: 0, error: "Save your profile before filling." };
     }
     this.isRunning = true;
+    this.cancelRequested = false;
     this.ui.setFillStatus(FILL_STATUS.DETECTING);
 
     try {
@@ -842,9 +843,18 @@ class AutofillOrchestrator {
         if (value === undefined || value === null || value === "") continue;
 
         for (const fieldData of entries) {
+          if (this.cancelRequested) return { fieldsFilled: filled, error: "Application automation paused." };
+          const existing = fieldData.element;
+          if (preserveExisting) {
+            if (existing.type === "radio" || existing.type === "checkbox") {
+              const group = existing.name ? Array.from(document.getElementsByName(existing.name)) : [existing];
+              if (group.some(control => control.checked)) continue;
+            } else if (existing.value?.trim()) continue;
+          }
           // Animate: highlight current field
           this.ui.highlightField(fieldType, "filling");
           await pause(80);
+          if (this.cancelRequested) return { fieldsFilled: filled, error: "Application automation paused." };
 
           const el = fieldData.element;
           let success = false;
@@ -873,11 +883,13 @@ class AutofillOrchestrator {
       }
 
       // Attach stored resume to resume/CV upload fields
+      if (this.cancelRequested) return { fieldsFilled: filled, error: "Application automation paused." };
       const resumeFile = await loadStoredResume();
       const resumeCount = this.detector.resumeUploadFields.length;
       if (resumeCount && resumeFile) {
         for (const rf of this.detector.resumeUploadFields) {
-          if (await this.filler.fillResumeFile(rf.element, resumeFile)) {
+          if (this.cancelRequested) return { fieldsFilled: filled, error: "Application automation paused." };
+          if ((!preserveExisting || !rf.element.files?.length) && await this.filler.fillResumeFile(rf.element, resumeFile)) {
             filled++;
           }
         }
@@ -890,14 +902,15 @@ class AutofillOrchestrator {
       const coverCount = this.detector.coverLetterUploadFields.length;
       if (coverCount && coverFile) {
         for (const cf of this.detector.coverLetterUploadFields) {
-          if (await this.filler.fillFileUpload(cf.element, coverFile)) {
+          if (this.cancelRequested) return { fieldsFilled: filled, error: "Application automation paused." };
+          if ((!preserveExisting || !cf.element.files?.length) && await this.filler.fillFileUpload(cf.element, coverFile)) {
             filled++;
           }
         }
       }
 
       // Handle account creation fields
-      filled += await this._handleAccountFields(profile);
+      if (!preserveExisting) filled += await this._handleAccountFields(profile);
 
       // Record a submission only if the user actually submits one of the forms
       // we filled. Filling alone is not a submission.
@@ -925,7 +938,7 @@ class AutofillOrchestrator {
       console.error("[jolly R] autofill error:", err);
       this.ui.setFillStatus(FILL_STATUS.ERROR);
       this.ui.showToast("AutoFill encountered an error.", "error");
-      return { fieldsFilled: 0 };
+      return { fieldsFilled: 0, error: "Autofill failed. Check the current step, then Resume." };
     } finally {
       this.isRunning = false;
     }
@@ -1175,6 +1188,54 @@ function ensureAutofill() {
   };
   state.uiService = feedback;
   state.autofill = new AutofillOrchestrator(state.detector, state.filler, feedback);
+}
+
+function inspectApplication() {
+  const visible = el => !el.hidden && !el.closest('[hidden], [aria-hidden="true"], [inert]')
+    && getComputedStyle(el).display !== "none" && getComputedStyle(el).visibility !== "hidden"
+    && el.getClientRects().length > 0;
+  const label = el => (el.getAttribute("aria-label") || el.textContent || el.value || "").replace(/\s+/g, " ").trim();
+  const controls = [...document.querySelectorAll('input, select, textarea, [role="combobox"]')]
+    .filter(el => el.type !== "hidden" && (visible(el) || (el.type === "file" && !el.disabled)));
+  const buttons = [...document.querySelectorAll('button, input[type="submit"], input[type="button"], [role="button"]')]
+    .filter(visible);
+  const finalLabel = /\b(submit|finish|complete|send application|apply now|accept|agree|sign)\b/i;
+  const nextButtons = buttons.filter(el => !el.disabled && el.getAttribute("aria-disabled") !== "true"
+    && /^(next(?: step)?|continue|save (?:and|&) continue|proceed|review(?: application)?)$/i.test(label(el))
+    && !finalLabel.test(label(el)));
+  const blockers = [];
+  if (document.querySelector('input[type="password"]') && controls.some(el => el.type === "password")) {
+    blockers.push("Please sign in or create your account on the page, then Resume.");
+  }
+  const verified = [...document.querySelectorAll('[name="g-recaptcha-response"], [name="h-captcha-response"], [name="cf-turnstile-response"]')].some(el => el.value?.trim());
+  if (!verified && [...document.querySelectorAll('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare"], [class*="g-recaptcha"], [class*="h-captcha"]')].some(visible)) {
+    blockers.push("Complete the verification on the page, then Resume.");
+  }
+  const missing = [];
+  for (const el of controls) {
+    if (el.disabled || el.readOnly || el.matches(':disabled')) continue;
+    const required = el.required || el.getAttribute("aria-required") === "true";
+    const empty = el.type === "checkbox" || el.type === "radio" ? !el.checked
+      : el.type === "file" ? !el.files?.length : !(el.value || "").trim();
+    let invalid = el.getAttribute("aria-invalid") === "true" || (el.validity && !el.validity.valid);
+    if (el.type === "radio" && el.name && required) {
+      invalid = ![...document.getElementsByName(el.name)].some(option => option.checked);
+    }
+    if ((required && empty && el.type !== "radio") || invalid) missing.push(state.detector._getLabel(el) || el.name || "Required field");
+  }
+  const errors = [...document.querySelectorAll('[role="alert"]')].filter(visible).map(label).filter(Boolean);
+  missing.push(...errors);
+  const signature = JSON.stringify([
+    location.href,
+    [...document.querySelectorAll('h1, h2, legend, [aria-current="step"]')].filter(visible).map(label),
+    controls.map(el => [el.tagName, el.type, el.id, el.name, state.detector._getLabel(el)]),
+  ]);
+  return {
+    signature, fields: controls.length, blockers, missing: [...new Set(missing)],
+    next: nextButtons.length === 1,
+    review: buttons.some(el => finalLabel.test(label(el))),
+    nextButton: nextButtons.length === 1 ? nextButtons[0] : null,
+  };
 }
 
 async function init() {
@@ -1930,6 +1991,31 @@ async function init() {
         return true; // keep the channel open for the async response
       }
 
+      case "AUTOMATION_INSPECT": {
+        const { nextButton, ...inspection } = inspectApplication();
+        sendResponse(inspection);
+        break;
+      }
+
+      case "AUTOMATION_CANCEL": {
+        if (state.autofill) state.autofill.cancelRequested = true;
+        sendResponse({ success: true });
+        break;
+      }
+
+      case "AUTOMATION_ADVANCE": {
+        const inspection = inspectApplication();
+        if (inspection.signature !== message.value?.signature || inspection.blockers.length
+          || inspection.missing.length || !inspection.nextButton) {
+          sendResponse({ clicked: false });
+        } else {
+          sendResponse({ clicked: true });
+          inspection.nextButton.click();
+        }
+        break;
+      }
+
+      case "AUTOMATION_FILL":
       case "FILL_JOB_APPLICATION": {
         if (message.value && typeof message.value === "object") {
           state.profile = message.value;
@@ -1943,8 +2029,8 @@ async function init() {
           sendResponse({ success: false, error: "No profile found. Save your profile first." });
           break;
         }
-        state.autofill.run(state.profile).then(result => {
-          sendResponse({ success: true, fieldsFilled: result?.fieldsFilled || 0 });
+        state.autofill.run(state.profile, message.type === "AUTOMATION_FILL").then(result => {
+          sendResponse({ success: !result?.error, fieldsFilled: result?.fieldsFilled || 0, ...(result?.error ? { error: result.error } : {}) });
         });
         return true; // keep the channel open for the async response
       }
