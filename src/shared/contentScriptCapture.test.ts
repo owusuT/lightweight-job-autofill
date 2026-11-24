@@ -382,6 +382,34 @@ const glassdoorCurrentCard = `
 `;
 
 describe('captureCurrentJob', () => {
+  it('captures Glassdoor recommended cards with class-based title links', async () => {
+    const result = await capture(`
+      <h1>Recommended jobs for you</h1>
+      <ul>
+        <li class="JobCard_jobCardContainer__example">
+          <div><a class="JobCard_jobTitle__example" href="/job-listing/analyst-acme.htm?jl=123">Data Analyst</a></div>
+          <span data-test="employer-name">Acme</span>
+          <div class="JobCard_location__example">New York, NY</div>
+          <span class="JobCard_jobAge__example">2d</span>
+        </li>
+        <li class="JobCard_jobCardContainer__example">
+          <a class="JobCard_jobTitle__example" href="/job-listing/engineer-example.htm?jl=456">Software Engineer</a>
+          <span data-test="employer-name">Example</span>
+          <div class="JobCard_location__example">Remote</div>
+        </li>
+      </ul>`, 'https://www.glassdoor.com/Job/index.htm');
+
+    expect(result.success).toBe(true);
+    expect(result.jobs).toHaveLength(2);
+    expect(result.jobs?.[0]).toMatchObject({ title: 'Data Analyst', company: 'Acme', location: 'New York, NY', ageLabel: '2d' });
+    expect(result.jobs?.[1]).toMatchObject({ title: 'Software Engineer', company: 'Example', remote: true });
+  });
+
+  it('does not capture the Glassdoor landing-page heading as a job', async () => {
+    const result = await capture('<h1>Your job search starts here</h1>', 'https://www.glassdoor.com/Job/index.htm');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('No Glassdoor job cards');
+  });
   it('captures a LinkedIn result card without the hashed classes or the duplicate title', async () => {
     const response = await capture(linkedInCard, 'https://www.linkedin.com/jobs/search/?keywords=data');
     expect(response.success).toBe(true);

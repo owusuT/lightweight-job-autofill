@@ -13,18 +13,22 @@ export interface CaptureJobResponse {
 }
 
 export async function captureCurrentJob(): Promise<CaptureJobResponse> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) return { success: false, error: "No active tab." };
-  return new Promise((resolve) => {
-    try {
-      chrome.tabs.sendMessage(tab.id!, { type: MESSAGE_TYPE.CAPTURE_JOB }, (response) => {
-        void chrome.runtime.lastError;
-        resolve(response ?? { success: false, error: "Could not read this page. Reload it and try again." });
-      });
-    } catch {
-      resolve({ success: false, error: "Extension context lost. Reload the panel." });
-    }
-  });
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return { success: false, error: "No active tab." };
+    return new Promise((resolve) => {
+      try {
+        chrome.tabs.sendMessage(tab.id!, { type: MESSAGE_TYPE.CAPTURE_JOB }, { frameId: 0 }, (response) => {
+          void chrome.runtime.lastError;
+          resolve(response ?? { success: false, error: "Could not read this page. Reload it and try again." });
+        });
+      } catch {
+        resolve({ success: false, error: "Extension context lost. Reload the panel." });
+      }
+    });
+  } catch {
+    return { success: false, error: "Could not access the current page. Try again from the job tab." };
+  }
 }
 
 export interface FindApplyUrlResponse {

@@ -1618,16 +1618,22 @@ async function init() {
     };
 
     const genericJobs = () => {
-      const titleEls = pickAll(document, ['[data-test="job-title"]', '[data-test="jobTitle"]']);
+      const isGlassdoor = /(^|\.)glassdoor\./.test(host);
+      const titleEls = pickAll(document, [
+        '[data-test="job-title"]',
+        '[data-test="jobTitle"]',
+        ...(isGlassdoor ? ['a[class*="JobCard_jobTitle"]', 'a[href*="/job-listing/"]', 'a[href*="jobListingId="]'] : []),
+      ]);
       // No list markup: treat the page itself as a single job (detail pages).
-      const seeds = titleEls.length ? titleEls : pickAll(document, ["h1"]).slice(0, 1);
+      const seeds = titleEls.length ? titleEls : (isGlassdoor && !isDetail ? [] : pickAll(document, ["h1"]).slice(0, 1));
       const seenCards = new Set();
       const jobs = [];
       for (const titleEl of seeds) {
         const title = text(titleEl);
         if (!title) continue;
 
-        const card = titleEl.parentElement?.closest('[class*="JobCard"]') || (seeds.length === 1 ? document : titleEl);
+        const card = titleEl.parentElement?.closest('[data-test="jobListing"], [class*="JobCard_jobCard"], li, article')
+          || titleEl.parentElement?.closest('[class*="JobCard"]') || (seeds.length === 1 ? document : titleEl);
         if (seenCards.has(card)) continue;
         seenCards.add(card);
       let company = text(pick(card, [
@@ -1644,6 +1650,7 @@ async function init() {
       const location = text(pick(card, [
         '[data-test="emp-location"]',
         '[data-test="location"]',
+        '[class*="JobCard_location"]',
         '[class*="JobDetails_location"]',
       ]));
 
@@ -1663,7 +1670,7 @@ async function init() {
           company,
           location,
           url: linkHref ? absolute(linkHref) : absolute(window.location.href),
-          ageLabel: text(pick(card, ['[data-test="job-age"]'])),
+          ageLabel: text(pick(card, ['[data-test="job-age"]', '[class*="JobCard_jobAge"]'])),
           salary,
           description: text(pick(card, [
             '[data-test="jobDescriptionContent"]',
@@ -1725,7 +1732,9 @@ async function init() {
 
     jobs = jobs.filter((job) => job && job.title);
     if (!jobs.length) {
-      return { success: false, error: "No job found on this page. Open a job listing or a job card and try again." };
+      return { success: false, error: host.includes("glassdoor.")
+        ? "No Glassdoor job cards found yet. Run a search or wait for your recommended jobs to load, then choose Add page."
+        : "No job found on this page. Open a job listing or a job card and try again." };
     }
     if (isDetail && !isLinkedInSearch && jobs.length === 1) jobs[0].url = canonicalUrl();
 

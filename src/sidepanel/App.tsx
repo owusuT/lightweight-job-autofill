@@ -185,31 +185,36 @@ export default function App() {
 
   const addCurrentJob = async () => {
     setAddingJob(true);
-    const res = await captureCurrentJob();
-    setAddingJob(false);
-    if (!res.success || (!res.job && !res.jobs?.length)) {
-      notify(res.error || "No job found on this page.");
-      return;
-    }
-    const raws = res.jobs?.length ? res.jobs : [res.job!];
-    const jobs = raws.map(rawPageJobToJob).filter((job): job is Job => Boolean(job));
-    if (!jobs.length) {
-      notify("Could not read the job on this page.");
-      return;
-    }
-    const scored = jobs.map((job) => scoreJob(job, scoringProfile));
-    const urls = new Set(jobs.map((job) => job.url));
-    const freshCount = jobs.filter((job) => !capturedUrls.has(job.url)).length;
-    setCapturedScored((prev) => sortJobs([...scored, ...prev.filter((j) => !urls.has(j.url))]));
-    setCapturedUrls((prev) => new Set([...prev, ...urls]));
-    const stored = await chrome.storage.local.get(["capturedJobs"]);
-    const current = Array.isArray(stored.capturedJobs) ? (stored.capturedJobs as Job[]) : [];
-    await chrome.storage.local.set({ capturedJobs: mergeCapturedJobs(current, jobs) });
-    if (jobs.length === 1) {
-      const [job] = jobs;
-      notify(`${freshCount ? "Added" : "Updated"} “${job.title}” — ${scored[0].score}/100, ${scored[0].stars}★`);
-    } else {
-      notify(`Captured ${jobs.length} jobs from this page (${freshCount} new).`);
+    try {
+      const res = await captureCurrentJob();
+      if (!res.success || (!res.job && !res.jobs?.length)) {
+        notify(res.error || "No job found on this page.");
+        return;
+      }
+      const raws = res.jobs?.length ? res.jobs : [res.job!];
+      const jobs = raws.map(rawPageJobToJob).filter((job): job is Job => Boolean(job));
+      if (!jobs.length) {
+        notify("Could not read the job on this page.");
+        return;
+      }
+      const scored = jobs.map((job) => scoreJob(job, scoringProfile));
+      const urls = new Set(jobs.map((job) => job.url));
+      const freshCount = jobs.filter((job) => !capturedUrls.has(job.url)).length;
+      setCapturedScored((prev) => sortJobs([...scored, ...prev.filter((j) => !urls.has(j.url))]));
+      setCapturedUrls((prev) => new Set([...prev, ...urls]));
+      const stored = await chrome.storage.local.get(["capturedJobs"]);
+      const current = Array.isArray(stored.capturedJobs) ? (stored.capturedJobs as Job[]) : [];
+      await chrome.storage.local.set({ capturedJobs: mergeCapturedJobs(current, jobs) });
+      if (jobs.length === 1) {
+        const [job] = jobs;
+        notify(`${freshCount ? "Added" : "Updated"} “${job.title}” — ${scored[0].score}/100, ${scored[0].stars}★`);
+      } else {
+        notify(`Captured ${jobs.length} jobs from this page (${freshCount} new).`);
+      }
+    } catch {
+      notify("Could not save captured jobs. Try Add page again.");
+    } finally {
+      setAddingJob(false);
     }
   };
 
