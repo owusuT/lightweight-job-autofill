@@ -121,6 +121,7 @@
     input[type="email"],
     input[type="tel"],
     input[type="url"],
+    input[type="password"],
     textarea,
     select {
       width: 100%;
@@ -388,6 +389,9 @@
       background: var(--surface);
     }
     .automation-panel [role="status"] { font-size: 12px; line-height: 1.5; }
+    .application-answer { margin: 16px 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .application-answer > label:first-child { line-height: 1.5; white-space: normal; }
+    .application-answer .checkbox-label { margin-top: 8px; }
 
     button:focus-visible { outline: 2px solid var(--platinum); outline-offset: 2px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }

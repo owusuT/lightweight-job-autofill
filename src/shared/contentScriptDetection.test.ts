@@ -43,7 +43,7 @@ const fixture = `
 
 type Field = { type: string; label?: string; id?: string; name?: string };
 
-async function runOnForm<T>(html: string, run: (send: (type: string, value?: unknown) => Promise<unknown>, document: Document) => Promise<T>): Promise<T> {
+async function runOnForm<T>(html: string, run: (send: (type: string, value?: unknown) => Promise<unknown>, document: Document) => Promise<T>, stored: Record<string, unknown> = {}): Promise<T> {
   const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, {
     url: 'https://careers.example.com/apply',
     runScripts: 'outside-only',
@@ -74,7 +74,7 @@ async function runOnForm<T>(html: string, run: (send: (type: string, value?: unk
       lastError: undefined,
     },
     storage: {
-      local: { get: async () => ({}), set: async () => {} },
+      local: { get: async () => stored, set: async (value: Record<string, unknown>) => Object.assign(stored, value) },
       sync: { get: async () => ({}), set: async () => {} },
     },
   };
@@ -95,6 +95,82 @@ async function runOnForm<T>(html: string, run: (send: (type: string, value?: unk
 }
 
 describe('generic field detection', () => {
+  it('fills exact chosen employer answers and leaves unrelated profile fields alone', async () => {
+    const question = "Are you currently an employee of Lowe's?";
+    await runOnForm(`<label for="employee">${question}*</label>
+      <select id="employee" required><option value="">Select One</option><option value="yes">Yes</option><option value="no">No</option></select>
+      <label>First name <input id="first" autocomplete="given-name"></label>
+      <label>What are the last 4 digits of your Social Security Number (SSN)?*<input id="identity" required></label>`, async (send, document) => {
+      const scan = await send('APPLICATION_QUESTIONS') as { questions: Array<{ question: string; options: string[]; sensitive: boolean }> };
+      expect(scan.questions[0]).toMatchObject({ question: `${question}*`, options: ['Yes', 'No'] });
+      expect(scan.questions.find(row => row.question.includes('SSN'))?.sensitive).toBe(true);
+      const result = await send('APPLICATION_APPLY_ANSWERS', {
+        profile: { firstName: 'Ada', lastName: 'Lovelace' },
+        answers: [{ question, origin: 'https://careers.example.com', answer: 'No' }],
+      });
+      expect(result).toMatchObject({ fieldsFilled: 1 });
+      expect(document.querySelector<HTMLSelectElement>('#employee')?.value).toBe('no');
+      expect(document.querySelector<HTMLInputElement>('#first')?.value).toBe('');
+      expect(document.querySelector<HTMLInputElement>('#identity')?.value).toBe('');
+    });
+  });
+
+  it('handles a Workday style Select One button with a self-referencing label', async () => {
+    const question = "Do you currently reside in the same household with someone currently employed at Lowe's?";
+    await runOnForm(`<label id="household-label">${question}*</label>
+      <button type="button" id="household" aria-haspopup="listbox" aria-required="true" aria-controls="choices" aria-labelledby="household-label household">Select One</button>
+      <div id="choices" role="listbox"><div role="option">Not applicable</div><div id="no" role="option">No</div></div>`, async (send, document) => {
+      const button = document.querySelector<HTMLButtonElement>('#household');
+      document.getElementById('no')?.addEventListener('click', () => { if (button) button.textContent = 'No'; });
+      const result = await send('APPLICATION_APPLY_ANSWERS', {
+        profile: {}, answers: [{ question, answer: 'No', origin: 'https://careers.example.com' }],
+      });
+      expect(result).toMatchObject({ fieldsFilled: 1 });
+      expect(button?.textContent).toBe('No');
+      const scan = await send('APPLICATION_QUESTIONS') as { questions: Array<{ question: string }> };
+      expect(scan.questions[0].question).toBe(`${question}*`);
+    });
+  });
+
+  it('uses remembered answers only for the same question and website', async () => {
+    const question = "Are you currently employed?";
+    await runOnForm(`<label>${question}<select id="employment"><option value="">Select One</option><option value="y">Yes</option></select></label>
+      <label>Are you currently an employee of Lowe's?*<select id="lowes"><option value="">Select One</option><option value="y">Yes</option></select></label>`, async (send, document) => {
+      await send('AUTOMATION_FILL', {});
+      expect(document.querySelector<HTMLSelectElement>('#employment')?.value).toBe('y');
+      expect(document.querySelector<HTMLSelectElement>('#lowes')?.value).toBe('');
+    }, { applicationAnswers: [
+      { question, answer: 'Yes', origin: 'https://careers.example.com' },
+      { question: "Are you currently an employee of Lowe's?", answer: 'Yes', origin: 'https://another-employer.example.com' },
+    ] });
+  });
+
+  it('keeps separate agreement notices distinct when their field labels match', async () => {
+    await runOnForm(`<div data-automation-id="richText">Drug testing release</div>
+      <div data-automation-id="formField-one"><label>I acknowledge<select id="drug"><option value="">Select One</option><option>Yes</option></select></label></div>
+      <div data-automation-id="richText">Electronic monitoring notice</div>
+      <div data-automation-id="formField-two"><label>I acknowledge<select id="monitoring"><option value="">Select One</option><option>Yes</option></select></label></div>`, async (send, document) => {
+      const scan = await send('APPLICATION_QUESTIONS') as { questions: Array<{ question: string }> };
+      expect(scan.questions.map(item => item.question)).toEqual(['Drug testing release\nI acknowledge', 'Electronic monitoring notice\nI acknowledge']);
+      await send('APPLICATION_APPLY_ANSWERS', { profile: {}, answers: [
+        { question: scan.questions[0].question, answer: 'Yes', origin: 'https://careers.example.com' },
+      ] });
+      expect(document.querySelector<HTMLSelectElement>('#drug')?.value).toBe('Yes');
+      expect(document.querySelector<HTMLSelectElement>('#monitoring')?.value).toBe('');
+    });
+  });
+
+  it('does not infer employment facts, identity details, or agreement answers from profile text', async () => {
+    await runOnForm(`<input autocomplete="given-name" id="first">
+      <label>What are the last 4 digits of your Social Security Number (SSN)?*<input id="ssn"></label>
+      <label>What is the month and day of your date of birth?<input id="birth"></label>
+      <label>Please enter your full legal name as evidence you have read and agree with the above release.*<input id="release"></label>
+      <label>Do you have any current or prior work experience with ADG or FBM?<input id="history"></label>`, async (send, document) => {
+      await send('AUTOMATION_FILL', { firstName: 'Ada', lastName: 'Lovelace', experience: 'Engineering' });
+      expect(document.querySelector<HTMLInputElement>('#first')?.value).toBe('Ada');
+      for (const id of ['ssn', 'birth', 'release', 'history']) expect(document.querySelector<HTMLInputElement>(`#${id}`)?.value).toBe('');
+    });
+  });
   it('automatically fills a step, preserves an existing answer, and clicks Next', async () => {
     await runOnForm(`<form>
       <label>First name <input id="first" autocomplete="given-name" required></label>

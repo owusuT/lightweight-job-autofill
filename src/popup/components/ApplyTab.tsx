@@ -3,6 +3,7 @@ import type { Profile } from "../../shared/types";
 import { generateStrongPassword } from "../../shared/password";
 import { clearForms, detectForms, fillApplication } from "../api";
 import { ApplicationAutomation } from './ApplicationAutomation';
+import { ApplicationAnswers } from './ApplicationAnswers';
 
 declare global {
   interface Window {
@@ -173,6 +174,7 @@ export function ApplyTab({ profile, atsName, setStatus }: Props) {
       </div>
 
       <ApplicationAutomation position={targetPosition.trim()} company={targetCompany.trim()} />
+      <ApplicationAnswers />
 
       <hr />
 

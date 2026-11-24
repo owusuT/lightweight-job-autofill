@@ -40,6 +40,7 @@ const isFrameWindow = window !== window.parent;
 // ─── MODULE STATE (shared across init / UI re-creation) ───────────────────────
 
 const state = {
+  applicationAnswers: [],
   initialized: false,
   detector: null,
   filler: null,
@@ -226,6 +227,51 @@ function applyAiAnswer(token, text) {
 
 // ─── ATS FIELD DETECTOR ──────────────────────────────────────────────────────
 
+const APPLICATION_CONTROLS = 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), textarea, select, [role="combobox"], button[aria-haspopup="listbox"], button[aria-haspopup="true"]';
+
+function normalizeApplicationQuestion(question) {
+  return String(question || "").normalize('NFKC').toLowerCase()
+    .replace(/[\u2018\u2019]/g, "'").replace(/\*/g, "").replace(/\s+/g, " ").trim();
+}
+
+function requiresExactApplicationAnswer(question) {
+  return /\b(?:ssn|social security|date of birth|birth|release|waiver|ordinance|polygraph|lie detector|deloitte|adg|artisan design|fbm|foundation building|relatives?|household|documentation|drug screen|drug free|surveillance|electronic monitoring)\b/.test(question)
+    || /\bcurrently\b.{0,40}\b(employee|employed)\b/.test(question)
+    || (question.length > 120 && /\b(consent|agree|acknowledg|policy|signature)\b/.test(question));
+}
+
+function applicationControlValue(el) {
+  const value = el.tagName === "BUTTON" || (el.getAttribute("role") === "combobox" && !el.matches('input, select'))
+    ? el.textContent : el.value;
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return /^(select(?: one| an option)?|choose(?: one| an option)?|please select)[.…]*$/i.test(text) ? "" : text;
+}
+
+async function loadApplicationAnswers() {
+  const stored = await chrome.storage.local.get('applicationAnswers');
+  state.applicationAnswers = Array.isArray(stored.applicationAnswers) ? stored.applicationAnswers.filter(entry =>
+    entry && typeof entry.question === "string" && entry.question.trim()
+    && typeof entry.origin === "string" && typeof entry.answer === "string" && entry.answer.trim()) : [];
+}
+
+function collectApplicationQuestions() {
+  const seen = new Set();
+  return [...document.querySelectorAll(APPLICATION_CONTROLS)].filter(isFillable).flatMap(el => {
+    if (el.type === "password" || el.type === "file") return [];
+    const question = state.detector._getApplicationQuestion(el);
+    const key = normalizeApplicationQuestion(question);
+    if (!key || /^(select one|choose one)$/i.test(key) || seen.has(key)) return [];
+    seen.add(key);
+    const saved = state.applicationAnswers.find(entry => entry.origin === location.origin && normalizeApplicationQuestion(entry.question) === key);
+    const options = el.tagName === "SELECT" ? [...el.options].filter(option => !option.disabled && option.value).map(option => option.label)
+      : el.type === "radio" && el.name ? [...document.getElementsByName(el.name)].map(option => state.filler._getOptionLabel(option)) : [];
+    return [{
+      question, origin: location.origin, options: [...new Set(options)], savedAnswer: saved?.answer || "",
+      sensitive: /\b(ssn|social security|date of birth|birth)\b/i.test(question),
+    }];
+  });
+}
+
 // Standard autocomplete tokens are stronger than visible text: they are
 // machine-readable and identical across form builders.
 const AUTOCOMPLETE_FIELDS = [
@@ -261,7 +307,7 @@ class AtsFieldDetector {
     this.coverLetterUploadFields = [];
 
     const inputs = document.querySelectorAll(
-      'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), textarea, select'
+      APPLICATION_CONTROLS
     );
 
     inputs.forEach(el => {
@@ -305,6 +351,12 @@ class AtsFieldDetector {
     const all   = `${id} ${name} ${ph} ${label} ${aria} ${qLabel} ${autocomplete} ${attrText}`;
 
     if (type === "file") return null;
+    const question = this._getApplicationQuestion(el);
+    const savedIndex = state.applicationAnswers.findIndex(entry => entry.origin === location.origin
+      && normalizeApplicationQuestion(entry.question) === normalizeApplicationQuestion(question));
+    if (savedIndex >= 0) return `saved_answer_${savedIndex}`;
+    // These questions require an answer chosen for this exact question.
+    if (requiresExactApplicationAnswer(question.toLowerCase())) return null;
     if (/\breferences?[^a-z].{0,20}\b(?:e[-_ ]?mail|phone|contact|number)\b|\b(?:e[-_ ]?mail|phone|contact)\b.{0,20}\breferences?\b/.test(all)) {
       return "reference_contact";
     }
@@ -429,7 +481,10 @@ class AtsFieldDetector {
     const labelledBy = (el.getAttribute("aria-labelledby") || "")
       .split(/\s+/)
       .filter(Boolean)
-      .map(id => document.getElementById(id)?.textContent || "")
+      .map(id => {
+        const node = document.getElementById(id);
+        return !node || node === el || el.contains(node) ? "" : this._labelText(node);
+      })
       .join(" ")
       .trim();
     if (labelledBy) return labelledBy;
@@ -439,16 +494,34 @@ class AtsFieldDetector {
 
     if (el.id) {
       const lbl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (lbl) return lbl.textContent.trim();
+      if (lbl) return this._labelText(lbl);
     }
     const parentLbl = el.closest("label");
-    if (parentLbl) return parentLbl.textContent.trim();
+    if (parentLbl) return this._labelText(parentLbl);
     if (el.placeholder) return el.placeholder;
 
     const legend = el.closest("fieldset")?.querySelector("legend");
     if (legend?.textContent.trim()) return legend.textContent.trim();
 
     return this._getNearbyText(el);
+  }
+
+  _labelText(node) {
+    const copy = node.cloneNode(true);
+    copy.querySelectorAll('input, select, textarea, button, [role="combobox"], [role="listbox"]').forEach(control => control.remove());
+    return (copy.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  _getApplicationQuestion(el) {
+    const label = this._getQuestionLabel(el) || this._getLabel(el);
+    const descriptions = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean)
+      .map(id => document.getElementById(id)).filter(node => node && !/error|feedback/i.test(node.id)
+        && !node.matches('[role="alert"], [aria-live]')).map(node => this._labelText(node));
+    const group = el.closest('[data-automation-id^="formField"], fieldset, [role="group"]');
+    const notice = group?.querySelector('[data-automation-id="richText"]')
+      || (group?.previousElementSibling?.matches('[data-automation-id="richText"]') ? group.previousElementSibling : null);
+    if (notice) descriptions.push(this._labelText(notice));
+    return [...new Set([...descriptions.filter(text => text && !label.includes(text)), label].filter(Boolean))].join('\n');
   }
 
   _getNearbyText(el) {
@@ -505,14 +578,15 @@ class FormFiller {
     if (!element || value === undefined || value === null || value === "") return false;
     const valueStr = String(value);
     const target = this._normOptionText(valueStr);
-    const tokens = target.split(" ").filter(Boolean);
+    const tokens = target.match(/[\p{L}\p{N}]+/gu) || [];
     if (!target) return false;
 
     const isGoodOption = (opt) => {
       const t = (opt.textContent || "").trim();
       if (!t || /^(select[.]{0,3}|choose[.]{0,3}|…)$/i.test(t)) return false;
       const c = this._normOptionText(t);
-      return c.includes(target) || (tokens.length > 1 && tokens.every(tk => c.includes(tk)));
+      const words = c.match(/[\p{L}\p{N}]+/gu) || [];
+      return tokens.every(token => words.includes(token));
     };
 
     // Only consider options that are actually rendered/visible. Pages that mix
@@ -532,6 +606,7 @@ class FormFiller {
     // option in an unrelated widget (phone country list, etc.) never wins.
     const controlBox = element.closest(".select__control");
     const widgetRoot = (controlBox && controlBox.parentElement) || element.parentElement;
+    const previouslyVisibleListboxes = new Set([...document.querySelectorAll('[role="listbox"]')].filter(isVisible));
 
     const controlledRoots = () => {
       const ids = `${element.getAttribute("aria-controls") || ""} ${element.getAttribute("aria-owns") || ""}`
@@ -541,7 +616,7 @@ class FormFiller {
 
     const roots = () => {
       const list = controlledRoots();
-      if (widgetRoot) list.push(widgetRoot);
+      if (widgetRoot && !widgetRoot.matches('html, body, form')) list.push(widgetRoot);
       return list;
     };
 
@@ -559,7 +634,7 @@ class FormFiller {
       // If the widget exposes no root at all, an open listbox is the only
       // reasonable fallback. Prefer the most recently opened visible listbox.
       const visibleListboxes = Array.from(document.querySelectorAll('[role="listbox"]'))
-        .filter(isVisible);
+        .filter(box => isVisible(box) && !previouslyVisibleListboxes.has(box));
       for (const box of visibleListboxes.reverse()) {
         const hit = pickFrom(box);
         if (hit) return hit;
@@ -585,7 +660,7 @@ class FormFiller {
     };
 
     const openMenu = () => {
-      const control = element.closest(".select__control") || element.parentElement;
+      const control = element.closest(".select__control") || (element.tagName === "BUTTON" ? element : element.parentElement);
       (control || element).dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
       (control || element).dispatchEvent(new MouseEvent("click",     { bubbles: true, cancelable: true, view: window }));
       element.focus();
@@ -596,6 +671,13 @@ class FormFiller {
       openMenu();
       let opt = await waitForOption(5, 100);
       if (opt) { clickOption(opt); return true; }
+
+      if (!element.matches('input, textarea')) {
+        opt = await waitForOption(12, 200);
+        if (opt) { clickOption(opt); return true; }
+        element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        return false;
+      }
 
       // Attempt 2: type the value (native setter + events), then click the option.
       // Search-driven widgets (e.g. Greenhouse location) return options from the
@@ -800,7 +882,7 @@ class AutofillOrchestrator {
     this._watchedForms = new WeakSet();
   }
 
-  async run(profile, preserveExisting = false) {
+  async run(profile, preserveExisting = false, explicitAnswers = [], onlyAnswers = false) {
     if (this.isRunning) return { fieldsFilled: 0, skipped: true };
     if (!profile) {
       this.ui.showToast("No profile found. Please set up your profile in jolly R.", "error");
@@ -813,10 +895,27 @@ class AutofillOrchestrator {
     try {
       // Wait for network to settle
       await this.networkMonitor.waitForIdle(2000);
+      await loadApplicationAnswers();
+      if (explicitAnswers.length) {
+        state.applicationAnswers = state.applicationAnswers.filter(saved => !explicitAnswers.some(entry => entry.origin === saved.origin
+          && normalizeApplicationQuestion(entry.question) === normalizeApplicationQuestion(saved.question)))
+          .concat(explicitAnswers.filter(entry => entry.answer.trim()));
+      }
 
       // Scan forms — SPA forms (e.g. Greenhouse embed) render after the network
       // settles, so retry several times before giving up.
       let fields = this.detector.scan();
+      if (onlyAnswers) {
+        fields = new Map([...fields].filter(([type]) => {
+          if (!type.startsWith('saved_answer_')) return false;
+          const saved = state.applicationAnswers[Number(type.slice('saved_answer_'.length))];
+          return explicitAnswers.some(entry => entry.origin === saved.origin && entry.answer.trim()
+            && normalizeApplicationQuestion(entry.question) === normalizeApplicationQuestion(saved.question));
+        }));
+        this.detector.resumeUploadFields = [];
+        this.detector.coverLetterUploadFields = [];
+        if (!fields.size) return { fieldsFilled: 0 };
+      }
       const hasFields = () => fields.size || this.detector.resumeUploadFields.length || this.detector.coverLetterUploadFields.length;
       for (let attempt = 0; attempt < 10 && !hasFields(); attempt++) {
         await pause(500);
@@ -845,11 +944,11 @@ class AutofillOrchestrator {
         for (const fieldData of entries) {
           if (this.cancelRequested) return { fieldsFilled: filled, error: "Application automation paused." };
           const existing = fieldData.element;
-          if (preserveExisting) {
+          if (preserveExisting && !(explicitAnswers.length && fieldType.startsWith('saved_answer_'))) {
             if (existing.type === "radio" || existing.type === "checkbox") {
               const group = existing.name ? Array.from(document.getElementsByName(existing.name)) : [existing];
               if (group.some(control => control.checked)) continue;
-            } else if (existing.value?.trim()) continue;
+            } else if (applicationControlValue(existing)) continue;
           }
           // Animate: highlight current field
           this.ui.highlightField(fieldType, "filling");
@@ -864,7 +963,7 @@ class AutofillOrchestrator {
               : this.filler.fillCheckboxGroup(el, value);
           } else if (el.type === "radio") {
             success = this.filler.fillRadioGroup(el, value);
-          } else if (el.getAttribute && (el.getAttribute("role") === "combobox" || el.getAttribute("aria-haspopup") === "true")) {
+          } else if (el.getAttribute && (el.getAttribute("role") === "combobox" || /^(true|listbox)$/.test(el.getAttribute("aria-haspopup") || ""))) {
             // Custom select widgets (React-Select / Greenhouse): open the flyout
             // and click the matching option instead of writing to the input.
             success = await this.filler.fillCombobox(el, value);
@@ -1020,6 +1119,7 @@ function buildValueMap(profile) {
     : (profile.skills || "");
 
   return {
+    ...Object.fromEntries(state.applicationAnswers.map((entry, index) => [`saved_answer_${index}`, entry.origin === location.origin ? entry.answer : ""])),
     first_name:   profile.firstName || "",
     last_name:    profile.lastName  || "",
     full_name:    [profile.firstName, profile.lastName].filter(Boolean).join(" "),
@@ -1195,7 +1295,7 @@ function inspectApplication() {
     && getComputedStyle(el).display !== "none" && getComputedStyle(el).visibility !== "hidden"
     && el.getClientRects().length > 0;
   const label = el => (el.getAttribute("aria-label") || el.textContent || el.value || "").replace(/\s+/g, " ").trim();
-  const controls = [...document.querySelectorAll('input, select, textarea, [role="combobox"]')]
+  const controls = [...document.querySelectorAll(APPLICATION_CONTROLS)]
     .filter(el => el.type !== "hidden" && (visible(el) || (el.type === "file" && !el.disabled)));
   const buttons = [...document.querySelectorAll('button, input[type="submit"], input[type="button"], [role="button"]')]
     .filter(visible);
@@ -1214,9 +1314,10 @@ function inspectApplication() {
   const missing = [];
   for (const el of controls) {
     if (el.disabled || el.readOnly || el.matches(':disabled')) continue;
-    const required = el.required || el.getAttribute("aria-required") === "true";
+    const required = el.required || el.getAttribute("aria-required") === "true"
+      || /\*\s*$/.test(state.detector._getLabel(el));
     const empty = el.type === "checkbox" || el.type === "radio" ? !el.checked
-      : el.type === "file" ? !el.files?.length : !(el.value || "").trim();
+      : el.type === "file" ? !el.files?.length : !applicationControlValue(el);
     let invalid = el.getAttribute("aria-invalid") === "true" || (el.validity && !el.validity.valid);
     if (el.type === "radio" && el.name && required) {
       invalid = ![...document.getElementsByName(el.name)].some(option => option.checked);
@@ -1995,6 +2096,23 @@ async function init() {
         const { nextButton, ...inspection } = inspectApplication();
         sendResponse(inspection);
         break;
+      }
+
+      case "APPLICATION_QUESTIONS": {
+        loadApplicationAnswers().then(() => sendResponse({ questions: collectApplicationQuestions() }),
+          () => sendResponse({ questions: [] }));
+        return true;
+      }
+
+      case "APPLICATION_APPLY_ANSWERS": {
+        const profile = message.value?.profile || state.profile || {};
+        const answers = (message.value?.answers || []).filter(entry => entry.origin === location.origin);
+        if (!answers.some(entry => entry.answer.trim())) { sendResponse({ success: true, fieldsFilled: 0 }); break; }
+        state.autofill.run(profile, true, answers, true).then(result => sendResponse({
+          success: !result.error && !result.skipped, fieldsFilled: result.fieldsFilled || 0,
+          ...(result.error ? { error: result.error } : {}),
+        }));
+        return true;
       }
 
       case "AUTOMATION_CANCEL": {

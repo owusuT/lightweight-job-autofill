@@ -4,6 +4,12 @@ This file is maintained automatically by the Go_manager mode.
 
 ## Change Log (most recent first)
 
+- **2026-11-24 - Employer application questions and chosen answers**
+  - Apply gains Scan questions and Apply chosen answers. Answers can be remembered locally for an exact question and website or used once. SSN and birth-date fields default to one-time use.
+  - Captures native selects, text fields, radio groups, and Workday-style Select One buttons, including labels that reference the control itself. Nearby explicit notices distinguish agreements with repeated labels.
+  - Employer history, household, identity, and release questions require explicit chosen answers instead of unrelated profile values. Automated fills reuse remembered answers and retain existing page answers.
+  - Verified with content-script and background tests. The supplied Lowe's questions informed the fixtures. Live Lowe's form markup and signed-in execution remain unverified.
+
 - **2026-11-24 - Automated application workflow**
   - Apply gains Start application, Pause, Resume, and Stop controls. A background runner saves the original tab, current step, and phase in local `applicationFlow` storage. Alarms recover suspended runs.
   - Each step fills through the existing cross-frame engine, preserves existing answers, validates required controls, then clicks one clearly identified Next action. Login, verification, missing answers, ambiguous navigation, and final review pause the workflow.

@@ -65,7 +65,7 @@ export class AllFramesModule {
     let anySuccess = false;
     let error: string | null = null;
 
-    if (type === 'FILL_JOB_APPLICATION' || type === 'MANUAL_FILL_FORM' || type === 'AUTOMATION_FILL') {
+    if (type === 'FILL_JOB_APPLICATION' || type === 'MANUAL_FILL_FORM' || type === 'AUTOMATION_FILL' || type === 'APPLICATION_APPLY_ANSWERS') {
       let fieldsFilled = 0;
       for (const frameId of frameIds) {
         if (type === 'AUTOMATION_FILL' && generation !== (this.automationGeneration.get(tabId) || 0)) break;
@@ -90,6 +90,17 @@ export class AllFramesModule {
         if (resp.success) anySuccess = true;
       }
       return { success: anySuccess, forms, framesReached, perFrame, error };
+    }
+
+    if (type === 'APPLICATION_QUESTIONS') {
+      const questions: unknown[] = [];
+      for (const frameId of frameIds) {
+        const response = await this._sendToFrame(tabId, frameId, { type });
+        if (!response || typeof response !== 'object' || !('questions' in response) || !Array.isArray(response.questions)) continue;
+        framesReached++;
+        questions.push(...response.questions);
+      }
+      return { success: framesReached > 0, candidates: questions, framesReached, perFrame };
     }
 
     if (type === 'AI_QUESTION_CANDIDATES') {
@@ -130,6 +141,7 @@ export class AllFramesModule {
       ALL_FRAMES_CLEAR: 'CLEAR_ALL_FORMS',
       ALL_FRAMES_QUESTION_CANDIDATES: 'AI_QUESTION_CANDIDATES',
       ALL_FRAMES_APPLY_ANSWER: 'AI_APPLY_ANSWER',
+      APPLICATION_QUESTIONS: 'APPLICATION_QUESTIONS',
     };
     const type = types[message.type];
     if (!type) return false;

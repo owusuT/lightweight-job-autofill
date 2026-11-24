@@ -10,6 +10,7 @@ import { AllFramesModule } from './modules/allFrames';
 import { JobsModule } from './modules/jobs';
 import { AiModule } from './modules/ai';
 import { ApplicationFlowModule } from './modules/applicationFlow';
+import { ApplicationAnswersModule } from './modules/applicationAnswers';
 
 // The toolbar opens the unified React interface and keeps it available across tabs.
 chrome.sidePanel
@@ -26,8 +27,9 @@ const allFramesModule = new AllFramesModule(userDataService);
 const jobsModule = new JobsModule();
 const aiModule = new AiModule();
 const applicationFlowModule = new ApplicationFlowModule(allFramesModule, userDataService);
+const applicationAnswersModule = new ApplicationAnswersModule(allFramesModule);
 
-const backgroundModules = [applicationFlowModule, atsModule, dataModule, commonModule, allFramesModule, jobsModule, aiModule];
+const backgroundModules = [applicationAnswersModule, applicationFlowModule, atsModule, dataModule, commonModule, allFramesModule, jobsModule, aiModule];
 
 const ASYNC_MESSAGE_TYPES = [
   MESSAGE_TYPE.GET_USER_PROFILE,

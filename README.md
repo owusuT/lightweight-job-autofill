@@ -32,6 +32,10 @@ The interface uses React + TypeScript and is built by Vite. The page scanner and
 
 ### Automated applications
 
+For employer questions such as current employment, relatives at the company, consent choices, or identity details, use **Apply → Application answers → Scan questions**. Choose the exact answers, then select **Apply chosen answers**. Remembered answers are stored locally for that website and question. SSN and birth-date answers default to one-time use. Leave **Remember for this website** unchecked for any answer you want to enter only once.
+
+If automation is running, pause it before applying answers and choose Resume afterward. Custom Select One buttons are supported alongside native dropdowns and text fields. Where available, notice text is included in the question match so separate agreements with the same short field label stay distinct.
+
 Save your profile and upload your resume, then open a job's application form. In **Apply**, choose **Start application**. The extension fills and checks each step, clicks a clearly identified Next or Continue button, and proceeds automatically through final review.
 
 **Pause** interrupts filling after the current field action. **Resume** scans the original application tab again and preserves answers already entered. **Stop** ends the run. When required answers, sign-in, verification, or an ambiguous navigation button need attention, the panel explains what to complete on the page before resuming. Submit the finished application yourself from its final review screen.
