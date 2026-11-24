@@ -1,22 +1,21 @@
     :root {
-      --primary:       #e1a5f0;
-      --primary-dark:  #764ba2;
-      --primary-glow:  rgba(225,165,240,0.3);
-      --bg:            #ffffff;
-      --surface:       #f8f9fa;
-      --surface-2:     #f0f0f8;
-      --text:          #1a1a2e;
-      --text-80:       rgba(26,26,46,0.75);
-      --text-sub:      #6b7280;
-      --divider:       #e5e7eb;
-      --green:         #10b981;
-      --red:           #ef4444;
-      --amber:         #f59e0b;
+      --primary: var(--platinum);
+      --primary-dark: var(--platinum);
+      --primary-glow: rgba(229, 228, 226, 0.12);
+      --bg: var(--void);
+      --surface-2: var(--surface-high);
+      --text: var(--platinum);
+      --text-80: var(--platinum);
+      --text-sub: var(--platinum-muted);
+      --divider: var(--line);
+      --green: var(--ok);
+      --red: var(--danger);
+      --amber: #c7b58c;
       --radius:        10px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
       font-size: 14px;
       color: var(--text);
       background: var(--bg);
@@ -30,7 +29,8 @@
 
     /* ── Header ─────────────────────────────────────── */
     .header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
       padding: 14px 18px;
       display: flex;
       align-items: center;
@@ -41,33 +41,16 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      color: white;
+      color: var(--platinum);
       font-weight: 700;
       font-size: 16px;
       letter-spacing: -0.3px;
       flex: 1;
     }
     .header-version {
-      color: rgba(255,255,255,0.65);
+      color: var(--platinum-muted);
       font-size: 11px;
       font-weight: 500;
-    }
-    .header-jobs {
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: white;
-      font: inherit;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 120ms ease, border-color 120ms ease;
-    }
-    .header-jobs:hover {
-      background: rgba(255,255,255,0.24);
-      border-color: rgba(255,255,255,0.55);
     }
 
     /* ── Tabs ────────────────────────────────────────── */
@@ -194,9 +177,9 @@
       transition: all 0.15s;
     }
     .btn-primary {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white;
-      box-shadow: 0 3px 12px var(--primary-glow);
+      background: var(--platinum-bright);
+      color: #0e0e0e;
+      box-shadow: none;
     }
     .btn-primary:hover { filter: brightness(1.07); transform: translateY(-1px); }
     .btn-primary:active { transform: translateY(0); }
@@ -207,11 +190,11 @@
     }
     .btn-secondary:hover { background: var(--surface-2); }
     .btn-danger {
-      background: #fef2f2;
+      background: rgba(201, 139, 139, 0.08);
       color: var(--red);
-      border: 1.5px solid #fee2e2;
+      border: 1.5px solid rgba(201, 139, 139, 0.2);
     }
-    .btn-danger:hover { background: #fee2e2; }
+    .btn-danger:hover { background: rgba(201, 139, 139, 0.2); }
     .btn-full { width: 100%; }
     .btn-sm { padding: 7px 12px; font-size: 12px; }
 
@@ -285,8 +268,8 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .badge-green { background: rgba(16,185,129,0.1); color: #059669; }
-    .badge-blue  { background: rgba(225,165,240,0.2); color: var(--primary-dark); }
+    .badge-green { background: rgba(157, 184, 164, 0.1); color: var(--ok); }
+    .badge-blue  { background: var(--surface-high); color: var(--primary-dark); }
 
     /* ── Empty state ─────────────────────────────────── */
     .empty-state {
@@ -308,8 +291,8 @@
       background: var(--surface);
       margin-bottom: 10px;
     }
-    .file-drop:hover { border-color: var(--primary); background: rgba(225,165,240,0.06); }
-    .file-drop.has-file { border-color: var(--green); background: rgba(16,185,129,0.05); }
+    .file-drop:hover { border-color: var(--primary); background: var(--surface-low); }
+    .file-drop.has-file { border-color: var(--green); background: rgba(157, 184, 164, 0.05); }
     .file-drop-icon { font-size: 26px; margin-bottom: 8px; }
     .file-drop-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
     .file-drop-sub { font-size: 11px; color: var(--text-sub); }
@@ -341,16 +324,16 @@
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      background: rgba(225,165,240,0.1);
+      background: var(--surface);
       border-radius: var(--radius);
       margin-bottom: 14px;
-      border: 1px solid rgba(225,165,240,0.3);
+      border: 1px solid var(--line);
     }
     .ats-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; flex-shrink: 0; }
     .ats-label { font-size: 12px; font-weight: 600; color: var(--primary-dark); }
     .ats-name { font-size: 12px; color: var(--text-sub); margin-left: auto; }
 
-    /* React mount: keep the popup a fixed 380x640 flex column */
+    /* Keep the shared panel scrollable between its header and footer. */
     #root { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 
@@ -396,3 +379,6 @@
     }
     .result-name { font-weight: 600; color: var(--text-80); }
     .result-label { color: var(--text-sub); text-align: right; }
+
+    button:focus-visible { outline: 2px solid var(--platinum); outline-offset: 2px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
