@@ -4,6 +4,13 @@ This file is maintained automatically by the Go_manager mode.
 
 ## Change Log (most recent first)
 
+- **2026-11-24 - One React panel with tabs**
+  - Profile, Apply, Best Jobs, History, and Tools share one persistent side panel. Best Jobs and AI settings render through React within it.
+  - The toolbar opens popup.html as the sole side-panel interface. Removed the separate Best Jobs HTML entry, toolbar popup registration, floating page dock, and manual DOM rendering. The content script retains page detection, autofill, file attachment, job capture, and message handlers.
+  - Scoped Best Jobs styles to its container and made the shared interface fit the panel width.
+  - Supersedes the earlier decision to retain the vanilla dock.
+
+
 - **2026-11-07 - Ollama (custom provider) points at the LAN server**
   - `src/shared/ai/tasks.ts`: `DEFAULT_CONFIG.providers.custom.baseUrl` is now `http://192.168.0.102:11434`.
   - `src/shared/ai/providers.ts`: `createProvider` fallback uses the same URL; the `custom` provider label is "Ollama (local)" in both the metadata and `CustomProvider`. `CustomProvider.listModels()` now calls `${baseUrl}/v1/models` and returns the server's model ids (empty list on failure). Default model is `qwen2.5:7b`.

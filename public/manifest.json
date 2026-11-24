@@ -22,18 +22,16 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "jolly R"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
       "js": ["contentScript.js"],
-      "css": ["contentScript.css"],
       "run_at": "document_idle",
       "all_frames": true
     }
@@ -41,7 +39,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "contentScript.css",
         "lib/pdfjs/build/pdf.js",
         "lib/pdfjs/build/pdf.worker.js"
       ],

@@ -34,7 +34,7 @@
    - Look for the extension icon in Chrome toolbar
    - Click the icon to open the popup
    - Navigate between Profile, Apply, History, and Tools tabs
-   - Click **Best Jobs** to open the side panel
+   - Select the **Best Jobs** tab in the panel
 
 ## First Time Setup
 
@@ -151,15 +151,14 @@ const fieldMappings = {
 lightweight-job-autofill/
 |-- dist/                  # Built extension (load this folder unpacked)
 |-- popup.html             # Popup entry (built by Vite)
-|-- sidepanel.html         # Side panel entry (built by Vite)
 |-- contentScript.js       # Form detection and filling (copied as-is)
 |-- contentScript.css      # Dock and toast styles
 |-- public/
 |   |-- manifest.json      # Extension configuration (MV3)
 |-- src/
 |   |-- background/        # Service worker source
-|   |-- popup/             # Popup React app
-|   |-- sidepanel/         # Side panel React app
+|   |-- popup/             # Unified React interface
+|   |-- sidepanel/         # Best Jobs React components
 |   |-- shared/            # Types, messages, scoring, AI providers
 |-- lib/
 |   |-- pdf-processor.js   # PDF text extraction

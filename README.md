@@ -2,21 +2,21 @@
 
 A Chrome extension that fills job application forms from a profile you save once. It runs on any site, including application forms inside cross-origin iframes, and keeps a local record of applications you submit.
 
-Current version: 2.0.0. Manifest V3.
+Current version: 3.0.0. Manifest V3.
 
 ## What it does
 
 - Detects form fields on the page and in embedded frames (Greenhouse, Workday, Lever, iCIMS, Taleo, BambooHR, and others).
 - Fills names, contact details, address, work history, education, skills, legal and eligibility questions, voluntary EEO questions, position details, and references.
 - Handles plain inputs, selects, radios, checkbox groups, React-Select style comboboxes, and file uploads.
-- Attaches a resume or cover letter you have stored in the popup.
-- Adds an in-page dock at the bottom right with Fill, Scan, and Clear actions. The dock forwards work to every frame on the page.
+- Attaches a resume or cover letter you have stored in the panel.
+- Provides Profile, Apply, Best Jobs, History, and Tools tabs in one React panel.
 - Tracks applications in a History tab. Fills are recorded separately and do not count as submissions.
 - Exports application history as CSV.
 - Extracts text and personal details from a PDF resume with Mozilla PDF.js.
 - Generates strong passwords with `crypto.getRandomValues`.
 
-Consent checkboxes are never accepted automatically. You enable each one in the popup.
+Consent checkboxes are never accepted automatically. You enable each one in the panel.
 
 ## Install
 
@@ -24,9 +24,9 @@ Consent checkboxes are never accepted automatically. You enable each one in the 
 2. Open `chrome://extensions/`.
 3. Turn on Developer mode.
 4. Click Load unpacked and select the `dist/` folder.
-5. Pin the extension if you want quick access to the popup.
+5. Pin the extension if you want quick access to the panel.
 
-The popup and side panel are React + TypeScript built by Vite. `contentScript.js` stays vanilla and is copied into `dist/`. Migration history: `plan/react-migration/`.
+The interface uses React + TypeScript and is built by Vite. The page scanner and autofill engine run in `contentScript.js` and communicate with the panel through the background service. Migration history: `plan/react-migration/`.
 
 ## Use
 
@@ -85,13 +85,13 @@ Everything stays in Chrome storage. No backend.
 - `AtsFieldDetector` scores fields from id, name, placeholder, label, aria-label, and question text. It stores every matching element per field type instead of only the first.
 - `FormFiller` writes values through the native prototype setter and fires input and change events. Hidden, disabled, read-only, and zero-size fields are skipped.
 - `AutofillOrchestrator` waits for network idle, scans with retries, fills each field, attaches files, then reports completion.
-- `UIService` renders the dock and toasts in a Shadow DOM so page CSS cannot break it.
+- The React panel displays scan results, fill feedback, jobs, and AI settings.
 
-### Popup (`src/popup/**`)
+### Unified panel (`src/popup/**`)
 
-React 18 + TypeScript. Four tabs: Profile, Apply, History, Tools. Includes the password generator, credentials list, detected field report, consent controls, resume/cover-letter upload, and the Best Jobs button.
+React 18 + TypeScript. Five tabs: Profile, Apply, Best Jobs, History, Tools. Includes the password generator, credentials list, detected field report, consent controls, resume/cover-letter upload, and the Best Jobs tab.
 
-### Side panel (`src/sidepanel/**`)
+### Best Jobs tab (`src/sidepanel/**`)
 
 React + TypeScript. Best Jobs ranks Arbeitnow results with the local `scoreJob` model against the saved profile, plus the job captured from the current page ("Add page"). AI settings, draft generation, and explicit insert-into-page live here.
 
@@ -137,13 +137,12 @@ Consent: background check, drug screening, signature, terms. All opt-in.
 
 ```
 popup.html                 Popup entry (built by Vite)
-sidepanel.html             Side panel entry (built by Vite)
 public/manifest.json       Extension manifest (MV3), emitted to dist/
-contentScript.js           Detection, filling, dock UI (vanilla, copied to dist/)
+contentScript.js           Page detection and filling engine (copied to dist/)
 contentScript.css          Dock and toast styles
 src/background/**          Service worker source, builds to dist/background.js
-src/popup/**               Popup React app and styles
-src/sidepanel/**           Side panel React app (jobs, AI settings)
+src/popup/**               Unified React interface and styles
+src/sidepanel/**           Best Jobs tab components and AI settings
 src/shared/**              Types, messages, scoring, capture, AI providers, helpers
 lib/pdf-processor.js       PDF text extraction and profile parsing
 lib/pdfjs/build/           Vendored PDF.js and worker
@@ -169,7 +168,7 @@ node --check contentScript.js
 
 1. Load the extension unpacked.
 2. Open a job application with a mix of text inputs, selects, radios, and an iframe embed.
-3. Run Fill from the dock.
+3. Run Fill Application from the Apply tab.
 4. Confirm the field total in the toast and that the History tab does not count the fill as a submission.
 
 ## License

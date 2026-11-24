@@ -10,9 +10,9 @@ import { AllFramesModule } from './modules/allFrames';
 import { JobsModule } from './modules/jobs';
 import { AiModule } from './modules/ai';
 
-// Keep the toolbar icon opening the popup, not the side panel.
+// The toolbar opens the unified React interface and keeps it available across tabs.
 chrome.sidePanel
-  ?.setPanelBehavior({ openPanelOnActionClick: false })
+  ?.setPanelBehavior({ openPanelOnActionClick: true })
   .catch(() => {});
 
 // Module registry

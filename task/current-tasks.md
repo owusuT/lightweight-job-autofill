@@ -1,5 +1,9 @@
 # Current Tasks
 
+## T-14 (DONE) — Unified React interface
+
+2026-11-24. The extension icon opens one persistent React side panel with Profile, Apply, Best Jobs, History, and Tools tabs. Best Jobs includes AI settings. The floating page dock and separate Best Jobs entry were removed. This supersedes the earlier decision to keep the vanilla dock. Page detection, autofill, uploads, and capture continue through the content script.
+
 ## T-01 (DONE) — Make popup actions work
 Wire `DETECT_FORMS`, `GET_ATS_STATUS`, `MANUAL_FILL_FORM`, `FILL_JOB_APPLICATION`, `CLEAR_ALL_FORMS` into `contentScript.js`.
 

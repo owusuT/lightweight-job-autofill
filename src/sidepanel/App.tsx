@@ -396,17 +396,9 @@ export default function App() {
     setPicker(null);
   };
 
-  const closeSidePanel = () => {
-    setDraft(null);
-    setPicker(null);
-    setToast(null);
-    setError(null);
-    // Close the side panel window
-    window.close();
-  };
 
   return (
-    <div className="app">
+    <div className="jobs-workspace app">
       <header className="app-header">
         <div>
           <p className="eyebrow">jolly R</p>
@@ -415,9 +407,6 @@ export default function App() {
         <div className="header-actions">
           <button className="badge-btn" onClick={() => setTab("ai")} title="AI settings">
             {aiBadge || "AI settings"}
-          </button>
-          <button className="close-btn" onClick={closeSidePanel} title="Close side panel" aria-label="Close side panel">
-            ×
           </button>
           <nav className="tabs" role="tablist" aria-label="Side panel sections">
             <button
@@ -453,12 +442,11 @@ export default function App() {
             filling={fillingPage}
             onClearAdded={clearAddedJobs}
             addedCount={capturedScored.length}
-            onClose={closeSidePanel}
           />
 
           {!profile?.position && !profile?.skills && (
             <p className="banner">
-              Add your role and skills in the popup to rank jobs more accurately.
+              Add your role and skills in the Profile tab to rank jobs more accurately.
             </p>
           )}
 

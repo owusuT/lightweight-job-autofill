@@ -87,6 +87,7 @@ async function runOnForm<T>(html: string, run: (send: (type: string, value?: Pro
   if (listeners.length === 0) throw new Error('content script never registered a message listener');
 
   try {
+    expect(window.document.getElementById('jolly-r-root')).toBeNull();
     return await run((type, value) => new Promise((resolve) => listeners[0]({ type, value }, {}, resolve)), window.document);
   } finally {
     dom.window.close();

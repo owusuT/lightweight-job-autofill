@@ -5,12 +5,14 @@ import { ProfileTab } from "./components/ProfileTab";
 import { ApplyTab } from "./components/ApplyTab";
 import { HistoryTab } from "./components/HistoryTab";
 import { ToolsTab } from "./components/ToolsTab";
+import BestJobs from "../sidepanel/App";
 
-type Tab = "profile" | "application" | "history" | "tools";
+type Tab = "profile" | "application" | "jobs" | "history" | "tools";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Profile" },
   { id: "application", label: "Apply" },
+  { id: "jobs", label: "Best Jobs" },
   { id: "history", label: "History" },
   { id: "tools", label: "Tools" },
 ];
@@ -37,15 +39,31 @@ export default function App() {
   };
 
   useEffect(() => {
+    let disposed = false;
+    const refreshPage = async () => {
+      const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const ats = await getAtsStatus(active?.id);
+      if (disposed) return;
+      setTabUrl(active?.url || "");
+      setAtsName(ats.atsName || null);
+    };
     void (async () => {
       const resp = await getProfile();
-      if (resp.profile) setProfile(resp.profile);
-
-      const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-      setTabUrl(active?.url || "");
-      const ats = await getAtsStatus(active?.id);
-      if (ats.atsName) setAtsName(ats.atsName);
+      if (!disposed && resp.profile) setProfile(resp.profile);
     })();
+    const onActivated = () => { void refreshPage(); };
+    const onUpdated = (_id: number, change: chrome.tabs.TabChangeInfo) => {
+      if (change.status === "complete" || change.url) void refreshPage();
+    };
+    void refreshPage();
+    chrome.tabs.onActivated?.addListener(onActivated);
+    chrome.tabs.onUpdated?.addListener(onUpdated);
+    return () => {
+      disposed = true;
+      chrome.tabs.onActivated?.removeListener(onActivated);
+      chrome.tabs.onUpdated?.removeListener(onUpdated);
+      if (timer.current) window.clearTimeout(timer.current);
+    };
   }, []);
 
   const onChange = (key: keyof Profile, value: string) => {
@@ -70,17 +88,6 @@ export default function App() {
     setStatus("Profile cleared.");
   };
 
-  const openSidePanel = async () => {
-    try {
-      const win = await chrome.windows.getCurrent();
-      if (win.id === undefined) throw new Error("no window id");
-      await chrome.sidePanel.open({ windowId: win.id });
-      window.close();
-    } catch {
-      setStatus("Could not open the side panel. Use the Chrome side panel menu.", "error");
-    }
-  };
-
   const onTabKeyDown = (event: React.KeyboardEvent, index: number) => {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
@@ -102,9 +109,6 @@ export default function App() {
           </svg>
           jolly R
         </div>
-        <button type="button" className="header-jobs" onClick={openSidePanel} title="Open Best Jobs side panel">
-          Best Jobs
-        </button>
         <span className="header-version">v{version}</span>
       </header>
 
@@ -142,6 +146,7 @@ export default function App() {
           )}
           {tab === "history" && <HistoryTab setStatus={setStatus} />}
           {tab === "tools" && <ToolsTab tabUrl={tabUrl} setStatus={setStatus} />}
+          {tab === "jobs" && <BestJobs />}
         </div>
       </div>
 

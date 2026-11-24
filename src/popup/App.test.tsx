@@ -22,8 +22,6 @@ beforeAll(() => {
       lastError: undefined,
     },
     tabs: { query: async () => [{ id: 1, url: 'https://example.com/job' }] },
-    sidePanel: { open: async () => {} },
-    windows: { getCurrent: async () => ({ id: 1 }) },
     storage: {
       local: { get: async () => ({}), set: async () => {}, remove: async () => {} },
     },
@@ -44,5 +42,15 @@ describe('popup App', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
     expect(await screen.findByText('No applications yet')).toBeInTheDocument();
+  });
+
+  it('opens Best Jobs and AI settings inside the same popup', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Best Jobs' }));
+    expect(await screen.findByRole('button', { name: 'Autofill' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'AI' }));
+    expect(await screen.findByRole('heading', { name: 'Ollama (local)' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Profile' }));
+    expect(await screen.findByLabelText('First Name')).toBeInTheDocument();
   });
 });

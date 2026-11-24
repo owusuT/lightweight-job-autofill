@@ -4,11 +4,9 @@ import { join, dirname } from 'path';
 const root = process.cwd();
 const dist = join(root, 'dist');
 
-// manifest.json is emitted by Vite from public/manifest.json. Copying the root
-// (vanilla) manifest here would overwrite it and drop sidePanel permissions.
+// Vite emits the manifest and React popup. Copy the page engine and PDF runtime.
 const files = [
   'contentScript.js',
-  'contentScript.css',
   'lib/pdf-processor.js',
 ];
 
