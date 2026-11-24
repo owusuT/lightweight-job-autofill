@@ -620,9 +620,12 @@ class FormFiller {
       return list;
     };
 
-    const pickFrom = (root) =>
-      Array.from((root || document).querySelectorAll('[role="option"], .select__option'))
-        .find(o => isGoodOption(o) && isVisible(o)) || null;
+    const pickFrom = (root) => {
+      const matches = Array.from((root || document).querySelectorAll('[role="option"], .select__option'))
+        .filter(option => isGoodOption(option) && isVisible(option));
+      return matches.find(option => this._normOptionText(option.textContent) === target)
+        || (matches.length === 1 ? matches[0] : null);
+    };
 
     const pickOption = () => {
       // Scoped lookup only. A document-wide fallback is what let the intl-tel

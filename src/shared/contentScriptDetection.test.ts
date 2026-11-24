@@ -119,7 +119,7 @@ describe('generic field detection', () => {
     const question = "Do you currently reside in the same household with someone currently employed at Lowe's?";
     await runOnForm(`<label id="household-label">${question}*</label>
       <button type="button" id="household" aria-haspopup="listbox" aria-required="true" aria-controls="choices" aria-labelledby="household-label household">Select One</button>
-      <div id="choices" role="listbox"><div role="option">Not applicable</div><div id="no" role="option">No</div></div>`, async (send, document) => {
+      <div id="choices" role="listbox"><div role="option">Yes, no previous employment</div><div id="no" role="option">No</div></div>`, async (send, document) => {
       const button = document.querySelector<HTMLButtonElement>('#household');
       document.getElementById('no')?.addEventListener('click', () => { if (button) button.textContent = 'No'; });
       const result = await send('APPLICATION_APPLY_ANSWERS', {
