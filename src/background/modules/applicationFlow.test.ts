@@ -84,3 +84,50 @@ it('recovers a waiting step after a worker restart without clicking Next again',
   expect((await control(resumed, 'STATUS')).flow?.phase).toBe('waiting');
   expect(sendMessage.mock.calls.filter(([, message]) => message.type === 'AUTOMATION_ADVANCE')).toHaveLength(1);
 });
+
+it('recovers when Workday temporarily removes frames while loading the second step', async () => {
+  const module = new ApplicationFlowModule(frames, new UserDataService());
+  await control(module, 'START');
+  await vi.advanceTimersByTimeAsync(2000);
+  inspection = { ...inspection, signature: 'step-two', next: false, review: true };
+  await vi.advanceTimersByTimeAsync(1000);
+  vi.spyOn(chrome.webNavigation, 'getAllFrames').mockRejectedValueOnce(new Error('The frame was removed.'));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect((await control(module, 'STATUS')).flow).toMatchObject({ status: 'running', step: 2, accessFailure: { stage: 'frames' } });
+  await vi.advanceTimersByTimeAsync(2000);
+  expect((await control(module, 'STATUS')).flow).toMatchObject({ status: 'review', step: 2 });
+  expect(sendMessage.mock.calls.filter(([, message]) => message.type === 'AUTOMATION_ADVANCE')).toHaveLength(1);
+});
+
+it('does not repeat Next when navigation closes its response channel', async () => {
+  sendMessage.mockImplementation(async (_id, message) => {
+    if (message.type === 'AUTOMATION_INSPECT') return inspection;
+    inspection = { ...inspection, signature: 'step-two', next: false, review: true };
+    throw new Error('The message port closed before a response was received.');
+  });
+  const module = new ApplicationFlowModule(frames, new UserDataService());
+  await control(module, 'START');
+  await vi.advanceTimersByTimeAsync(5000);
+  expect((await control(module, 'STATUS')).flow).toMatchObject({ status: 'review', step: 2 });
+  expect(sendMessage.mock.calls.filter(([, message]) => message.type === 'AUTOMATION_ADVANCE')).toHaveLength(1);
+});
+
+it('pauses with a specific message when frame access keeps failing', async () => {
+  vi.spyOn(chrome.webNavigation, 'getAllFrames').mockRejectedValue(new Error('Cannot access frames.'));
+  const module = new ApplicationFlowModule(frames, new UserDataService());
+  await control(module, 'START');
+  await vi.advanceTimersByTimeAsync(22000);
+  expect((await control(module, 'STATUS')).flow).toMatchObject({ status: 'paused', message: expect.stringContaining('application frames') });
+  expect(frames.runForTab).not.toHaveBeenCalled();
+});
+
+it('retries an autofill that lost its receiver before verifying the step', async () => {
+  vi.mocked(frames.runForTab).mockResolvedValueOnce({ success: false, fieldsFilled: 0, framesReached: 0, perFrame: {} });
+  const module = new ApplicationFlowModule(frames, new UserDataService());
+  await control(module, 'START');
+  await vi.advanceTimersByTimeAsync(1000);
+  expect((await control(module, 'STATUS')).flow).toMatchObject({ status: 'running', phase: 'fill', accessFailure: { stage: 'fill' } });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect((await control(module, 'STATUS')).flow).toMatchObject({ status: 'running', phase: 'advance' });
+  expect(sendMessage.mock.calls.filter(([, message]) => message.type === 'AUTOMATION_ADVANCE')).toHaveLength(0);
+});

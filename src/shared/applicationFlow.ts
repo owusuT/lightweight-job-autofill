@@ -11,6 +11,7 @@ export interface ApplicationFlow {
   updatedAt: number;
   position: string;
   company: string;
+  accessFailure?: { stage: 'tab' | 'frames' | 'inspect' | 'fill' | 'advance'; since: number };
 }
 
 export interface ApplicationInspection {

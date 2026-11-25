@@ -4,6 +4,11 @@ This file is maintained automatically by the Go_manager mode.
 
 ## Change Log (most recent first)
 
+- **2026-11-24 - Recover application access during navigation**
+  - The application runner retries temporary tab, frame, inspection, and fill failures for up to 20 seconds instead of pausing immediately with a generic error. Persistent failures identify which access operation needs attention.
+  - A lost response after clicking Next preserves the waiting checkpoint and waits for the new step without repeating the click. Autofill with zero responding frames retries before the step can be advanced. Resume clears the previous access retry window.
+  - Verified with eight workflow regression tests and the production build. The reported Arch Workday session remains unverified live.
+
 - **2026-11-24 - Employer application questions and chosen answers**
   - Apply gains Scan questions and Apply chosen answers. Answers can be remembered locally for an exact question and website or used once. SSN and birth-date fields default to one-time use.
   - Captures native selects, text fields, radio groups, and Workday-style Select One buttons, including labels that reference the control itself. Nearby explicit notices distinguish agreements with repeated labels.

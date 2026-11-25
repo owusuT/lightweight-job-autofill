@@ -5,6 +5,13 @@ import { UserDataService } from './userData';
 
 const ALARM = 'application-flow';
 type FrameInspection = ApplicationInspection & { frameId: number };
+type AccessStage = NonNullable<ApplicationFlow['accessFailure']>['stage'];
+
+class PageAccessError extends Error {
+  constructor(readonly stage: AccessStage, readonly original: unknown) {
+    super('Application page access failed');
+  }
+}
 
 function isInspection(value: unknown): value is ApplicationInspection {
   if (!value || typeof value !== 'object') return false;
@@ -56,23 +63,71 @@ export class ApplicationFlowModule {
       void this.serial(async () => {
         try {
           await this.tick();
-        } catch {
-          const flow = await this.read();
-          if (flow?.status === 'running') await this.pause(flow, 'Could not access the application. Reload the page, then Resume.');
+        } catch (error) {
+          await this.recover(error);
         }
       }).catch(() => undefined);
     }, 1000);
   }
 
-  private async inspect(tabId: number): Promise<FrameInspection[]> {
-    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+  private async request<T>(flow: ApplicationFlow, stage: AccessStage, operation: () => Promise<T>): Promise<T> {
+    let result: T;
+    try {
+      result = await operation();
+    } catch (error) {
+      throw new PageAccessError(stage, error);
+    }
+    if (flow.accessFailure?.stage === stage) {
+      delete flow.accessFailure;
+      await this.save(flow);
+    }
+    return result;
+  }
+
+  private async recover(error: unknown): Promise<void> {
+    const flow = await this.read();
+    if (!flow || flow.status !== 'running') return;
+    if (!(error instanceof PageAccessError)) {
+      await this.pause(flow, 'Application automation encountered an error. Pause on the current page and try Resume.');
+      return;
+    }
+    const detail = error.original instanceof Error ? error.original.message : String(error.original);
+    if (error.stage === 'tab' && /no tab|invalid tab|tab.*closed/i.test(detail)) {
+      await this.pause(flow, 'The application tab was closed or replaced. Stop this run and Start from the application tab.');
+      return;
+    }
+    const since = flow.accessFailure?.stage === error.stage ? flow.accessFailure.since : Date.now();
+    if (Date.now() - since >= 20000) {
+      const message: Record<AccessStage, string> = {
+        tab: 'Cannot access the original application tab. Stop this run and Start from the application tab.',
+        frames: 'Cannot read the application frames. Check extension site access for this application website, then Resume.',
+        inspect: 'The application page is not responding. Refresh this page after reloading the extension, then Resume.',
+        fill: 'The page did not respond to autofill. Refresh the application page, then Resume.',
+        advance: 'The page did not confirm navigation. Check the current step, then Resume.',
+      };
+      await this.pause(flow, message[error.stage]);
+      return;
+    }
+    await this.save({ ...flow, accessFailure: { stage: error.stage, since }, message: 'Waiting for the application page to finish loading…' });
+    this.wake();
+  }
+
+  private async inspect(flow: ApplicationFlow): Promise<FrameInspection[]> {
+    const tabId = flow.tabId;
+    const frames = await this.request(flow, 'frames', () => chrome.webNavigation.getAllFrames({ tabId }));
     const ids = new Set([0, ...(frames || []).map(frame => frame.frameId)]);
     const results: FrameInspection[] = [];
+    let failure: unknown = new Error('The content script has not responded.');
     for (const frameId of ids) {
       try {
         const result: unknown = await chrome.tabs.sendMessage(tabId, { type: 'AUTOMATION_INSPECT' }, { frameId });
         if (isInspection(result)) results.push({ ...result, frameId });
-      } catch { /* Frames without application controls may have no receiver. */ }
+      } catch (error) { failure = error; }
+    }
+    if (!results.length) throw new PageAccessError('inspect', failure);
+    if (flow.accessFailure?.stage === 'inspect') {
+      delete flow.accessFailure;
+      await this.save(flow);
     }
     return results;
   }
@@ -80,15 +135,10 @@ export class ApplicationFlowModule {
   private async tick(): Promise<void> {
     const flow = await this.read();
     if (!flow || flow.status !== 'running') return;
-    const tab = await chrome.tabs.get(flow.tabId);
+    const tab = await this.request(flow, 'tab', () => chrome.tabs.get(flow.tabId));
     if (tab.status === 'loading') { this.wake(); return; }
-    const inspections = await this.inspect(flow.tabId);
+    const inspections = await this.inspect(flow);
     const signature = JSON.stringify(inspections.map(frame => [frame.frameId, frame.signature]));
-    if (!inspections.length) {
-      if (Date.now() - flow.updatedAt < 15000) this.wake();
-      else await this.pause(flow, 'Cannot read this page. Refresh the application page, then Resume.');
-      return;
-    }
     const blockers = inspections.flatMap(frame => frame.blockers);
     if (blockers.length) { await this.pause(flow, blockers.join(' ')); return; }
     if (flow.phase === 'waiting') {
@@ -99,6 +149,7 @@ export class ApplicationFlowModule {
         } else this.wake();
         return;
       }
+      delete flow.accessFailure;
       await this.save({ ...flow, phase: 'fill', step: flow.step + 1, updatedAt: Date.now(), message: 'Reading the next step…' });
       this.wake();
       return;
@@ -107,10 +158,14 @@ export class ApplicationFlowModule {
     if (flow.phase === 'fill') {
       const profile = await this.userData.getProfile();
       if (!profile) { await this.pause(flow, 'Save your profile in the Profile tab, then Resume.'); return; }
-      const result = await this.frames.runForTab(flow.tabId, 'AUTOMATION_FILL', {
-        ...profile,
-        ...(flow.position ? { position: flow.position } : {}),
-        ...(flow.company ? { company: flow.company } : {}),
+      const result = await this.request(flow, 'fill', async () => {
+        const filled = await this.frames.runForTab(flow.tabId, 'AUTOMATION_FILL', {
+          ...profile,
+          ...(flow.position ? { position: flow.position } : {}),
+          ...(flow.company ? { company: flow.company } : {}),
+        });
+        if (!filled.framesReached) throw new Error('The page navigated before autofill could respond.');
+        return filled;
       });
       if (result.error) { await this.pause(flow, result.error); return; }
       await this.save({ ...flow, phase: 'advance', signature, message: `Filled ${result.fieldsFilled || 0} fields. Checking this step…`, updatedAt: Date.now() });
@@ -134,9 +189,9 @@ export class ApplicationFlowModule {
     }
     // Persist before clicking. A worker restart waits for the page change and never repeats this click.
     await this.save({ ...flow, phase: 'waiting', signature, updatedAt: Date.now(), message: 'Moving to the next step…' });
-    const result = await chrome.tabs.sendMessage(flow.tabId, {
+    const result = await this.request(flow, 'advance', () => chrome.tabs.sendMessage(flow.tabId, {
       type: 'AUTOMATION_ADVANCE', value: { signature: next[0].signature },
-    }, { frameId: next[0].frameId });
+    }, { frameId: next[0].frameId }));
     if (!result?.clicked) await this.pause(flow, 'The page changed or needs attention. Check it, then Resume.');
     else this.wake();
   }
@@ -166,6 +221,7 @@ export class ApplicationFlowModule {
       if (type === 'APPLICATION_FLOW_STOP') flow = { ...flow, status: 'stopped', message: 'Application automation stopped.' };
       if (type === 'APPLICATION_FLOW_RESUME') {
         if (flow.status !== 'paused') return { success: false, flow, error: 'Only a paused application can be resumed.' };
+        delete flow.accessFailure;
         flow = { ...flow, status: 'running', phase: 'fill', message: 'Resuming the application…' };
       }
     }
